@@ -9,6 +9,9 @@ on:
 jobs:
   quality-and-tests:
     runs-on: ubuntu-latest
+    env:
+      # secrets cannot be referenced in an `if:` condition, so resolve presence here
+      HAS_PROJECT_PAT: ${{ secrets.PROJECT_PAT_RO != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,3 +36,11 @@ jobs:
 
       - name: Run tests with Pytest
         run: uv run pytest
+
+      # Read-only on the board: this must never be able to mutate project 5.
+      # Skipped on fork PRs, where repository secrets are not exposed.
+      - name: Validate project board
+        if: ${{ env.HAS_PROJECT_PAT == 'true' }}
+        run: ./scripts/validate-project.sh
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT_RO }}
