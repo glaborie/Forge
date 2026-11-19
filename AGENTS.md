@@ -3,11 +3,13 @@
 This file tells coding agents (Claude Code, Cursor, Codex, Copilot Workspace, etc.) how to work in this repository. It describes the project, the script contracts, the environment they require, and the API gotchas that will otherwise waste your time.
 
 1. What this repository is
-Three artifacts live together here:
+Four artifacts live together here:
 
 MATRIX.md — the vendor-neutral framework document defining the four reliability dimensions (Functional, Security, Operational, Temporal), their metrics and SLO thresholds, and their mapping to NIST AI RMF, ISO/IEC 42001, ISO/IEC 42119‑8, OWASP LLM Top 10, CSA AICM, ENISA FAICP, and the EU AI Act.
 
 standard-index.json — the machine-readable standard registry and story→standard index. Authoritative for tooling; MATRIX.md §8 mirrors it for readers. Its `Standard` identifiers are the exact values the project's `Standard` field must contain.
+
+src/forge_otel/ — the Python package that instruments an agent serving an OpenAI-compatible API. Contract in §5.6.
 
 scripts/ — a small Bash + Python toolchain that materializes the matrix as a GitHub Projects V2 backlog and keeps it consistent as work progresses.
 
@@ -20,6 +22,9 @@ text
 ├── MATRIX.md                       ← framework doc
 ├── standard-index.json             ← standard registry + story index
 ├── agentguard-backlog.csv          ← canonical backlog (32 items)
+├── pyproject.toml                  ← Python package + tool config
+├── src/forge_otel/                 ← A1 instrumentation package
+├── tests/                          ← pytest suite + mock upstream
 ├── scripts/
 │   ├── import-backlog.sh           ← CSV → GitHub Project (idempotent)
 │   ├── triage-ready.sh             ← Backlog → Ready for P0s
@@ -34,6 +39,7 @@ gh ≥ 2.40	project item-create, item-edit, field-list	gh --version
 jq ≥ 1.6	All JSON handling	jq --version
 python3 ≥ 3.8	CSV parsing (multiline bodies)	python3 --version
 bash ≥ 4.4	Avoids ${#arr[@]} unbound-variable bug under set -u	bash --version
+uv ≥ 0.5	Python 3.12 + dependency management for forge_otel	uv --version
 PAT with project scope	GITHUB_TOKEN cannot read or write Projects V2	gh auth status
 If gh auth status does not list project:
 
@@ -49,7 +55,12 @@ PROJECT_NUM	5	all scripts
 OWNER	@me	all scripts
 DONE_STATUS	Done	unblock.sh --sweep
 GH_TOKEN	from gh auth	CI only
+FORGE_OTEL_ENDPOINT	unset	OTLP/HTTP collector endpoint; unset = spans created, nothing exported
+FORGE_OTEL_CAPTURE_CONTENT	1	0 records prompt/completion sha256 instead of text
+FORGE_OTEL_PRICES	unset	JSON price overrides, e.g. {"gpt-4o-mini": {"input": 0.15, "output": 0.60}} (USD per 1M tokens)
 Positional form is preferred for human use; environment form is preferred for CI and for agents running commands in a loop.
+
+The three `FORGE_OTEL_*` variables are read at call time, not import time.
 
 5. Script contracts
 Treat these as stable interfaces. If you need to change a contract, update this file first.
@@ -118,6 +129,17 @@ Idempotent: yes. Safe to run on a cron.
 
 Exit codes: 0 success, 1 on unresolved target or missing field.
 
+5.6 forge_otel (Python package, not a script)
+`pyproject.toml` defines one package, `forge_otel`, with two entry points:
+
+`init_tracing(app, *, exporter=None, service_name="forge-agent")` — builds a `TracerProvider`, installs the inbound attribute middleware, and instruments FastAPI. Exports OTLP/HTTP when `FORGE_OTEL_ENDPOINT` is set or when an explicit `exporter` is passed; with neither, spans are created and dropped.
+
+`llm_call(*, provider, model, prompt=None)` — context manager around the outbound provider call. Returns a handle whose `record_response(model=, input_tokens=, output_tokens=, completion=)` sets response model, token usage, content and cost. An exception inside the block sets span status ERROR and records the exception.
+
+The span attributes are the contract A2, E1 and F1 consume; they are enumerated in A1's acceptance criteria in agentguard-backlog.csv. Do not rename them without updating that item and this section.
+
+Tests run offline against `tests/fake_upstream.py`, an OpenAI-compatible FastAPI app, asserting on `InMemorySpanExporter`. No API key and no network are required: `uv run pytest`.
+
 6. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
 
@@ -131,6 +153,11 @@ Could not resolve to a ProjectV2	Trying node(id: owner) { ... on User { projectV
 EXISTING_TITLES: unbound variable	Bash ≤ 4.3 with set -u and ${#empty_assoc[@]}.	Do not use ${#arr[@]} for emptiness; use jq 'length' on exported JSON, or require Bash ≥ 4.4.
 Options truncated at first comma	--single-select-options splits on ,.	Keep option labels comma-free. Store the full title in the item body.
 Draft items have no labels	GitHub limitation on ProjectV2DraftIssue.	Append _Labels: …_ to the item body (the importer already does this).
+`--body` rejects a PVTI_ id	Body edits address the draft issue content, not the project item.	Query `content { ... on DraftIssue { id } }` and pass that DI_ id.
+`http.status_code` appears instead of `http.response.status_code`	The FastAPI instrumentor defaults to pre-1.20 semantic conventions.	forge_otel sets `http.response.status_code` in its own send wrapper; do not rely on the instrumentor for it.
+Duplicate `exception` span events	`start_as_current_span` records exceptions and sets status by default.	Pass `record_exception=False, set_status_on_exception=False` when recording manually.
+Middleware sees no active span	Starlette wraps in reverse add order, so the last-added middleware is outermost.	Add attribute middleware before `FastAPIInstrumentor.instrument_app`.
+TestClient re-raises the endpoint's exception	`raise_server_exceptions=True` is the default.	`TestClient(app, raise_server_exceptions=False)` when asserting on a 5xx.
 7. Canonical workflows for agents
 7.1 Rebuilding the entire board from scratch
 bash
