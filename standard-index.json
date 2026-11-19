@@ -1,0 +1,1097 @@
+{
+  "schema_version": "1.0",
+  "source": {
+    "document": "MATRIX.md",
+    "section": "7.2 Story-to-standard index",
+    "matrix_version": "1.0",
+    "generated": "2026-Q2",
+    "canonical_identifier_field": "Standard",
+    "multi_value_separator": ";"
+  },
+  "standards_registry": {
+    "NIST AI RMF": {
+      "full_name": "NIST AI Risk Management Framework 1.0 (AI 100-1)",
+      "issuer": "NIST",
+      "type": "framework",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework"
+    },
+    "NIST AI 800-3": {
+      "full_name": "Expanding the AI Evaluation Toolbox with Statistical Models",
+      "issuer": "NIST",
+      "type": "technical-report",
+      "url": "https://www.nist.gov/publications"
+    },
+    "ISO/IEC 42001": {
+      "full_name": "Information technology — Artificial intelligence — Management system",
+      "issuer": "ISO/IEC",
+      "type": "certifiable-standard",
+      "url": "https://www.iso.org/standard/42001"
+    },
+    "ISO/IEC 42119-8": {
+      "full_name": "Generative AI Testing: Benchmarking and Red Teaming",
+      "issuer": "ISO/IEC (proposed)",
+      "type": "standard-in-development",
+      "url": null
+    },
+    "OWASP LLM Top 10": {
+      "full_name": "OWASP Top 10 for Large Language Model Applications (2025)",
+      "issuer": "OWASP",
+      "type": "threat-model",
+      "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+      "controls": {
+        "LLM01": "Prompt Injection",
+        "LLM02": "Sensitive Information Disclosure",
+        "LLM03": "Supply Chain",
+        "LLM04": "Data and Model Poisoning",
+        "LLM05": "Improper Output Handling",
+        "LLM06": "Excessive Agency",
+        "LLM07": "System Prompt Leakage",
+        "LLM08": "Vector and Embedding Weaknesses",
+        "LLM09": "Misinformation",
+        "LLM10": "Unbounded Consumption"
+      }
+    },
+    "Google SAIF": {
+      "full_name": "Google Secure AI Framework",
+      "issuer": "Google",
+      "type": "framework",
+      "url": "https://saif.google/"
+    },
+    "CSA AICM": {
+      "full_name": "Cloud Security Alliance AI Controls Matrix",
+      "issuer": "CSA",
+      "type": "controls-matrix",
+      "control_count": 243,
+      "domain_count": 18,
+      "url": "https://cloudsecurityalliance.org/artifacts/ai-controls-matrix"
+    },
+    "ENISA FAICP": {
+      "full_name": "ENISA Framework for AI Cybersecurity Practices",
+      "issuer": "ENISA",
+      "type": "framework",
+      "layers": 3,
+      "url": "https://www.enisa.europa.eu/"
+    },
+    "EU AI Act": {
+      "full_name": "Regulation (EU) 2024/1689",
+      "issuer": "European Union",
+      "type": "regulation",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+      "articles": {
+        "9": "Risk management system",
+        "10": "Data and data governance",
+        "11": "Technical documentation",
+        "12": "Record-keeping",
+        "13": "Transparency and provision of information",
+        "14": "Human oversight",
+        "15": "Accuracy, robustness and cybersecurity"
+      }
+    }
+  },
+  "dimensions": [
+    "Functional",
+    "Security",
+    "Operational",
+    "Temporal",
+    "Cross-cutting"
+  ],
+  "stories": [
+    {
+      "id": "A1",
+      "title": "Instrument AI requests with OpenTelemetry",
+      "short_title": "OTel instrumentation",
+      "epic": "Epic A",
+      "milestone": "M1 Baseline",
+      "priority": "P0",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 8"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "otel_span_export",
+        "trace_sample"
+      ]
+    },
+    {
+      "id": "A2",
+      "title": "Create operational reliability dashboard",
+      "short_title": "Operational dashboard",
+      "epic": "Epic A",
+      "milestone": "M1 Baseline",
+      "priority": "P0",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 8"
+          ]
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "dashboard_snapshot",
+        "alert_config"
+      ]
+    },
+    {
+      "id": "A3",
+      "title": "Record audit log for guardrail decisions",
+      "short_title": "Immutable audit log",
+      "epic": "Epic A",
+      "milestone": "M1 Baseline",
+      "priority": "P1",
+      "dimensions": [
+        "Cross-cutting"
+      ],
+      "primary_standards": [
+        {
+          "standard": "CSA AICM",
+          "refs": [
+            "audit",
+            "logging"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 12",
+            "Art. 13"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "audit_log_export",
+        "log_integrity_proof"
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "Create and import golden datasets",
+      "short_title": "Golden datasets",
+      "epic": "Epic B",
+      "milestone": "M3 Evaluation",
+      "priority": "P0",
+      "dimensions": [
+        "Functional"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 10"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "dataset_manifest",
+        "dataset_version_history"
+      ]
+    },
+    {
+      "id": "B2",
+      "title": "Turn production failures into golden-dataset candidates",
+      "short_title": "Failures to candidates",
+      "epic": "Epic B",
+      "milestone": "M5 Continuous",
+      "priority": "P0",
+      "dimensions": [
+        "Functional",
+        "Temporal"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure",
+            "Manage"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 10"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "promotion_log",
+        "candidate_queue_snapshot"
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "Run regression suite on model/prompt changes",
+      "short_title": "Regression in CI",
+      "epic": "Epic B",
+      "milestone": "M3 Evaluation",
+      "priority": "P0",
+      "dimensions": [
+        "Functional",
+        "Temporal"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 9"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "ci_run_log",
+        "pass_rate_report"
+      ]
+    },
+    {
+      "id": "C1",
+      "title": "Configure LLM-as-judge evaluators",
+      "short_title": "LLM-as-judge",
+      "epic": "Epic C",
+      "milestone": "M3 Evaluation",
+      "priority": "P0",
+      "dimensions": [
+        "Functional"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "NIST AI 800-3",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "evaluator_config",
+        "scored_trace_sample"
+      ]
+    },
+    {
+      "id": "C2",
+      "title": "Report statistical confidence for evaluations",
+      "short_title": "Statistical confidence",
+      "epic": "Epic C",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Functional"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI 800-3",
+          "refs": [
+            "benchmark_accuracy",
+            "generalized_accuracy"
+          ]
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "evaluation_report_with_ci"
+      ]
+    },
+    {
+      "id": "C3",
+      "title": "Add functional evaluation gate to CI",
+      "short_title": "Functional CI gate",
+      "epic": "Epic C",
+      "milestone": "M3 Evaluation",
+      "priority": "P0",
+      "dimensions": [
+        "Functional"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 15"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "gate_pass_fail_artifact"
+      ]
+    },
+    {
+      "id": "D1",
+      "title": "Deploy input guardrails for prompt injection and system-prompt leakage",
+      "short_title": "Input guardrails",
+      "epic": "Epic D",
+      "milestone": "M2 Guardrails",
+      "priority": "P0",
+      "dimensions": [
+        "Security"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM01",
+            "LLM07"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "Google SAIF",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "guardrail_policy",
+        "detection_log"
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Deploy output guardrails for PII and unsafe content",
+      "short_title": "Output guardrails",
+      "epic": "Epic D",
+      "milestone": "M2 Guardrails",
+      "priority": "P0",
+      "dimensions": [
+        "Security"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM02",
+            "LLM05"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 10"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "redaction_log",
+        "safety_score_distribution"
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Run automated adversarial tests in CI",
+      "short_title": "Adversarial tests in CI",
+      "epic": "Epic D",
+      "milestone": "M4 Red Teaming",
+      "priority": "P0",
+      "dimensions": [
+        "Security"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM01",
+            "LLM02",
+            "LLM05",
+            "LLM06",
+            "LLM07"
+          ]
+        },
+        {
+          "standard": "ISO/IEC 42119-8",
+          "refs": []
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "Google SAIF",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "red_team_report",
+        "ci_attack_suite_log"
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Enforce tool-call authorization for agents",
+      "short_title": "Tool-call authorization",
+      "epic": "Epic D",
+      "milestone": "M2 Guardrails",
+      "priority": "P0",
+      "dimensions": [
+        "Security"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM06"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 14"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "permission_matrix",
+        "denied_call_log"
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Map security evidence to OWASP LLM Top 10",
+      "short_title": "OWASP evidence mapping",
+      "epic": "Epic D",
+      "milestone": "M4 Red Teaming",
+      "priority": "P1",
+      "dimensions": [
+        "Security",
+        "Cross-cutting"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM01",
+            "LLM02",
+            "LLM03",
+            "LLM04",
+            "LLM05",
+            "LLM06",
+            "LLM07",
+            "LLM08",
+            "LLM09",
+            "LLM10"
+          ]
+        },
+        {
+          "standard": "CSA AICM",
+          "refs": []
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "owasp_coverage_report"
+      ]
+    },
+    {
+      "id": "E1",
+      "title": "Add circuit breakers and fallback behavior",
+      "short_title": "Circuit breakers",
+      "epic": "Epic E",
+      "milestone": "M2 Guardrails",
+      "priority": "P0",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 8"
+          ]
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "circuit_breaker_config",
+        "trip_log"
+      ]
+    },
+    {
+      "id": "E2",
+      "title": "Add budget and rate-limit controls",
+      "short_title": "Budget and rate limits",
+      "epic": "Epic E",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": [
+            "LLM10"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 8"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "quota_policy",
+        "spend_dashboard_snapshot"
+      ]
+    },
+    {
+      "id": "E3",
+      "title": "Detect latency and error anomalies",
+      "short_title": "Latency/error anomaly",
+      "epic": "Epic E",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 9"
+          ]
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "anomaly_alert_config",
+        "baseline_model"
+      ]
+    },
+    {
+      "id": "F1",
+      "title": "Detect input and embedding drift",
+      "short_title": "Drift detection",
+      "epic": "Epic F",
+      "milestone": "M5 Continuous",
+      "priority": "P0",
+      "dimensions": [
+        "Temporal"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 10"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "drift_report",
+        "reference_distribution_manifest"
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "Canary deploy and auto-rollback",
+      "short_title": "Canary and auto-rollback",
+      "epic": "Epic F",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Temporal",
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Manage"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 14"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "canary_metrics",
+        "rollback_log"
+      ]
+    },
+    {
+      "id": "F3",
+      "title": "Maintain model and evaluation audit trail",
+      "short_title": "Audit trail",
+      "epic": "Epic F",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Temporal",
+        "Cross-cutting"
+      ],
+      "primary_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 9",
+            "Cl. 10"
+          ]
+        },
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 12"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "CSA AICM",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "versioned_audit_trail_export"
+      ]
+    },
+    {
+      "id": "F4",
+      "title": "Track incident recurrence rate",
+      "short_title": "Incident recurrence",
+      "epic": "Epic F",
+      "milestone": "M5 Continuous",
+      "priority": "P2",
+      "dimensions": [
+        "Temporal"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Manage"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 10"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "recurrence_dashboard",
+        "incident_tag_report"
+      ]
+    },
+    {
+      "id": "G1",
+      "title": "Map controls to NIST, ISO, OWASP, and EU AI Act",
+      "short_title": "Control-to-standard map",
+      "epic": "Epic G",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Cross-cutting"
+      ],
+      "primary_standards": [
+        {
+          "standard": "CSA AICM",
+          "refs": []
+        },
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 9"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": []
+        },
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": []
+        },
+        {
+          "standard": "OWASP LLM Top 10",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "control_mapping_table",
+        "crosswalk_json"
+      ]
+    },
+    {
+      "id": "G2",
+      "title": "Generate audit-ready compliance report",
+      "short_title": "Audit-ready report",
+      "epic": "Epic G",
+      "milestone": "M5 Continuous",
+      "priority": "P1",
+      "dimensions": [
+        "Cross-cutting"
+      ],
+      "primary_standards": [
+        {
+          "standard": "CSA AICM",
+          "refs": []
+        },
+        {
+          "standard": "EU AI Act",
+          "refs": [
+            "Art. 11"
+          ]
+        }
+      ],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "compliance_report_pdf",
+        "evidence_bundle_zip"
+      ]
+    },
+    {
+      "id": "G3",
+      "title": "Publish reliability score dashboard",
+      "short_title": "Reliability score",
+      "epic": "Epic G",
+      "milestone": "M5 Continuous",
+      "priority": "P2",
+      "dimensions": [
+        "Cross-cutting"
+      ],
+      "primary_standards": [],
+      "supporting_standards": [],
+      "evidence_artifacts": [
+        "score_dashboard_snapshot"
+      ]
+    },
+    {
+      "id": "G4",
+      "title": "Add threat-landscape note with ARTEX case study",
+      "short_title": "Threat landscape (ARTEX)",
+      "epic": "Epic G",
+      "milestone": "M4 Red Teaming",
+      "priority": "P2",
+      "dimensions": [
+        "Security"
+      ],
+      "primary_standards": [
+        {
+          "standard": "ENISA FAICP",
+          "refs": [
+            "Layer II",
+            "Layer III"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "Google SAIF",
+          "refs": []
+        }
+      ],
+      "evidence_artifacts": [
+        "threat_landscape_note"
+      ]
+    }
+  ],
+  "indexes": {
+    "by_standard": {
+      "NIST AI RMF": [
+        "A1",
+        "B1",
+        "B2",
+        "B3",
+        "C1",
+        "C3",
+        "F1",
+        "F2",
+        "F4",
+        "G1"
+      ],
+      "NIST AI 800-3": [
+        "C1",
+        "C2"
+      ],
+      "ISO/IEC 42001": [
+        "A1",
+        "A2",
+        "B2",
+        "B3",
+        "E1",
+        "E2",
+        "E3",
+        "F1",
+        "F3",
+        "F4",
+        "G1"
+      ],
+      "ISO/IEC 42119-8": [
+        "D3"
+      ],
+      "OWASP LLM Top 10": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "E2",
+        "G1"
+      ],
+      "Google SAIF": [
+        "D1",
+        "D3",
+        "G4"
+      ],
+      "CSA AICM": [
+        "A3",
+        "D5",
+        "F3",
+        "G1",
+        "G2"
+      ],
+      "ENISA FAICP": [
+        "G4"
+      ],
+      "EU AI Act": [
+        "A3",
+        "B1",
+        "C3",
+        "D2",
+        "D4",
+        "F2",
+        "F3",
+        "G1",
+        "G2"
+      ]
+    },
+    "by_dimension": {
+      "Functional": [
+        "B1",
+        "B2",
+        "B3",
+        "C1",
+        "C2",
+        "C3"
+      ],
+      "Security": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "G4"
+      ],
+      "Operational": [
+        "A1",
+        "A2",
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "Temporal": [
+        "B2",
+        "B3",
+        "F1",
+        "F2",
+        "F3",
+        "F4"
+      ],
+      "Cross-cutting": [
+        "A3",
+        "D5",
+        "F3",
+        "G1",
+        "G2",
+        "G3"
+      ]
+    },
+    "by_epic": {
+      "Epic A": [
+        "A1",
+        "A2",
+        "A3"
+      ],
+      "Epic B": [
+        "B1",
+        "B2",
+        "B3"
+      ],
+      "Epic C": [
+        "C1",
+        "C2",
+        "C3"
+      ],
+      "Epic D": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5"
+      ],
+      "Epic E": [
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "Epic F": [
+        "F1",
+        "F2",
+        "F3",
+        "F4"
+      ],
+      "Epic G": [
+        "G1",
+        "G2",
+        "G3",
+        "G4"
+      ]
+    },
+    "by_milestone": {
+      "M1 Baseline": [
+        "A1",
+        "A2",
+        "A3"
+      ],
+      "M2 Guardrails": [
+        "D1",
+        "D2",
+        "D4",
+        "E1"
+      ],
+      "M3 Evaluation": [
+        "B1",
+        "B3",
+        "C1",
+        "C3"
+      ],
+      "M4 Red Teaming": [
+        "D3",
+        "D5",
+        "G4"
+      ],
+      "M5 Continuous": [
+        "B2",
+        "C2",
+        "E2",
+        "E3",
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "G1",
+        "G2",
+        "G3"
+      ]
+    },
+    "by_priority": {
+      "P0": [
+        "A1",
+        "A2",
+        "B1",
+        "B2",
+        "B3",
+        "C1",
+        "C3",
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "E1",
+        "F1"
+      ],
+      "P1": [
+        "A3",
+        "C2",
+        "D5",
+        "E2",
+        "E3",
+        "F2",
+        "F3",
+        "G1",
+        "G2"
+      ],
+      "P2": [
+        "F4",
+        "G3",
+        "G4"
+      ]
+    }
+  },
+  "invariants": [
+    "Every story.id in stories[] appears in exactly one epic in indexes.by_epic",
+    "Every story.id in stories[] appears in exactly one milestone in indexes.by_milestone",
+    "Every story.id in stories[] appears in exactly one priority bucket in indexes.by_priority",
+    "Every standard referenced in primary_standards or supporting_standards is a key in standards_registry",
+    "Every value in stories[].dimensions is in dimensions[]",
+    "indexes.by_standard[std] equals the set of stories whose primary_standards or supporting_standards reference std",
+    "indexes.by_dimension[dim] equals the set of stories whose dimensions includes dim"
+  ],
+  "example_queries": {
+    "all_stories_for_owasp": "jq '.indexes.by_standard[\"OWASP LLM Top 10\"]' standards-index.json",
+    "all_standards_for_story": "jq '.stories[] | select(.id==\"D3\") | [.primary_standards[].standard, .supporting_standards[].standard]' standards-index.json",
+    "eu_ai_act_coverage": "jq '[.stories[] | select(any(.primary_standards[]?, .supporting_standards[]?; .standard==\"EU AI Act\")) | .id]' standards-index.json",
+    "missing_owasp_controls": "jq --slurpfile reg <(jq '.standards_registry[\"OWASP LLM Top 10\"].controls | keys' standards-index.json) '[.stories[] | .primary_standards[]? | select(.standard==\"OWASP LLM Top 10\") | .refs[]] | unique' standards-index.json",
+    "p0_stories_by_standard": "jq '[.stories[] | select(.priority==\"P0\") | {id, stds: [.primary_standards[].standard]}]' standards-index.json",
+    "milestone_readiness": "jq '.indexes.by_milestone | to_entries | map({milestone: .key, count: (.value|length), stories: .value})' standards-index.json"
+  }
+}
