@@ -79,7 +79,7 @@ gh api graphql --paginate -f query='
          title: (.content.title // ""),
          fields: (
            .fieldValues.nodes
-           | map({
+           | map(select(.field?.name != null) | {
                key: (.field.name | ascii_downcase | gsub("[^a-z0-9]"; "")),
                value: (.text // .name // "")
              })

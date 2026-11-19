@@ -151,3 +151,15 @@ AC:
 - Note cites public reporting
 - Links to Security Reliability section
 - Reviewed quarterly",story;security,Security,Red Teaming,P2,ENISA FAICP; Google SAIF,M4 Red Teaming,Epic G
+A4. Auto-instrument outbound HTTP with httpx,"As an AI engineer, I want outbound HTTP from any provider client traced automatically, so that a call I forgot to wrap in llm_call() still appears in the trace instead of vanishing.
+
+AC:
+- `opentelemetry-instrumentation-httpx` is enabled inside `init_tracing()`, so callers do not instrument their own clients.
+- Every outbound httpx request produces a CLIENT span carrying http.request.method, url.full and http.response.status_code.
+- Inside `llm_call()` that CLIENT span nests under the chat span, giving wire-level detail without a second top-level span.
+- gen_ai.* attributes still come only from `llm_call().record_response()`; the httpx span never infers them.
+- Tests: an httpx call made outside `llm_call()` yields a CLIENT span with the expected URL; the same call inside `llm_call()` has the chat span as its parent. The no-op export behaviour is unchanged.
+
+Non-goals: replacing `llm_call()`, streaming, provider-specific SDK instrumentation.
+
+_Labels: story;observability_",story;observability,Operational,Baseline,P1,NIST AI RMF,M1 Baseline,Epic A

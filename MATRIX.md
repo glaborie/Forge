@@ -240,6 +240,7 @@ The GitHub project is the execution layer of this matrix. Each story is tagged w
 | A1 OTel instrumentation | Operational | NIST AI RMF (Measure) | ISO/IEC 42001 (Cl. 8) |
 | A2 Operational dashboard | Operational | ISO/IEC 42001 (Cl. 8) | — |
 | A3 Immutable audit log | Cross-cutting | CSA AICM | EU AI Act (Art. 12, 13) |
+| A4 httpx auto-instrumentation | Operational | NIST AI RMF (Measure) | ISO/IEC 42001 (Cl. 8) |
 | B1 Golden datasets | Functional | NIST AI RMF (Measure) | EU AI Act (Art. 10) |
 | B2 Failures → candidates | Functional / Temporal | NIST AI RMF | ISO/IEC 42001 (Cl. 10) |
 | B3 Regression in CI | Functional / Temporal | NIST AI RMF | ISO/IEC 42001 (Cl. 9) |

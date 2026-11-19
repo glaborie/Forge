@@ -21,7 +21,7 @@ text
 ├── AGENTS.md                       ← you are here
 ├── MATRIX.md                       ← framework doc
 ├── standard-index.json             ← standard registry + story index
-├── agentguard-backlog.csv          ← canonical backlog (32 items)
+├── agentguard-backlog.csv          ← canonical backlog (33 items)
 ├── pyproject.toml                  ← Python package + tool config
 ├── src/forge_otel/                 ← A1 instrumentation package
 ├── tests/                          ← pytest suite + mock upstream
@@ -158,6 +158,7 @@ Draft items have no labels	GitHub limitation on ProjectV2DraftIssue.	Append _Lab
 Duplicate `exception` span events	`start_as_current_span` records exceptions and sets status by default.	Pass `record_exception=False, set_status_on_exception=False` when recording manually.
 Middleware sees no active span	Starlette wraps in reverse add order, so the last-added middleware is outermost.	Add attribute middleware before `FastAPIInstrumentor.instrument_app`.
 TestClient re-raises the endpoint's exception	`raise_server_exceptions=True` is the default.	`TestClient(app, raise_server_exceptions=False)` when asserting on a 5xx.
+`ascii_downcase cannot be applied to: null`	A field value whose type is missing from fetch-items.sh's inline fragments (a date value, for instance) has no `.field`.	The sanitizer keeps the `select(.field?.name != null)` guard; preserve it when adding field types.
 7. Canonical workflows for agents
 7.1 Rebuilding the entire board from scratch
 bash

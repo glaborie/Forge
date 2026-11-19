@@ -852,6 +852,36 @@
       "evidence_artifacts": [
         "threat_landscape_note"
       ]
+    },
+    {
+      "id": "A4",
+      "title": "Auto-instrument outbound HTTP with httpx",
+      "short_title": "httpx auto-instrumentation",
+      "epic": "Epic A",
+      "milestone": "M1 Baseline",
+      "priority": "P1",
+      "dimensions": [
+        "Operational"
+      ],
+      "primary_standards": [
+        {
+          "standard": "NIST AI RMF",
+          "refs": [
+            "Measure"
+          ]
+        }
+      ],
+      "supporting_standards": [
+        {
+          "standard": "ISO/IEC 42001",
+          "refs": [
+            "Cl. 8"
+          ]
+        }
+      ],
+      "evidence_artifacts": [
+        "otel_span_export"
+      ]
     }
   ],
   "indexes": {
@@ -866,7 +896,8 @@
         "F1",
         "F2",
         "F4",
-        "G1"
+        "G1",
+        "A4"
       ],
       "NIST AI 800-3": [
         "C1",
@@ -883,7 +914,8 @@
         "F1",
         "F3",
         "F4",
-        "G1"
+        "G1",
+        "A4"
       ],
       "ISO/IEC 42119-8": [
         "D3"
@@ -946,7 +978,8 @@
         "A2",
         "E1",
         "E2",
-        "E3"
+        "E3",
+        "A4"
       ],
       "Temporal": [
         "B2",
@@ -969,7 +1002,8 @@
       "Epic A": [
         "A1",
         "A2",
-        "A3"
+        "A3",
+        "A4"
       ],
       "Epic B": [
         "B1",
@@ -1010,7 +1044,8 @@
       "M1 Baseline": [
         "A1",
         "A2",
-        "A3"
+        "A3",
+        "A4"
       ],
       "M2 Guardrails": [
         "D1",
@@ -1068,7 +1103,8 @@
         "F2",
         "F3",
         "G1",
-        "G2"
+        "G2",
+        "A4"
       ],
       "P2": [
         "F4",
