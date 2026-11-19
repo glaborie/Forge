@@ -1,0 +1,30 @@
+name: Move Issue to In Progress
+
+on:
+  create: # Triggers when a branch or tag is created
+
+jobs:
+  move-to-in-progress:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract issue number and update project status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_PAT }}
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const match = branch.match(/^(\d+)-/);
+            if (!match) return;
+            
+            const issueNumber = parseInt(match[1], 10);
+            const { owner, repo } = context.repo;
+            
+            // Adds a comment or label you can pair with board filters, 
+            // or calls the Projects GraphQL API to set Status = "In Progress"
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: ['in-progress']
+            });
