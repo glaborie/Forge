@@ -1,0 +1,101 @@
+name: Update Project Board Card
+
+on:
+  create:
+
+env:
+  PROJECT_NUMBER: 5 # <-- Replace with your GitHub Project number
+  TARGET_STATUS: "In Progress"
+
+jobs:
+  move-card-to-in-progress:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move linked issue to In Progress
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_PAT }}
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const match = branch.match(/^(\d+)-/);
+            if (!match) {
+              console.log('Branch name does not start with an issue number. Skipping.');
+              return;
+            }
+
+            const issueNumber = parseInt(match[1], 10);
+            const { owner, repo } = context.repo;
+            const projectNumber = parseInt(process.env.PROJECT_NUMBER, 10);
+
+            // 1. Fetch the issue's node ID and linked ProjectV2 items
+            const query = `
+              query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issueNumber) {
+                    id
+                    projectItems(first: 10) {
+                      nodes {
+                        id
+                        project {
+                          id
+                          number
+                          field(name: "Status") {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              options {
+                                id
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, { owner, repo, issueNumber });
+            const issue = result.repository.issue;
+            if (!issue) return;
+
+            const projectItem = issue.projectItems.nodes.find(
+              item => item.project.number === projectNumber
+            );
+            if (!projectItem) {
+              console.log(`Issue #${issueNumber} is not on Project #${projectNumber}.`);
+              return;
+            }
+
+            const statusField = projectItem.project.field;
+            const targetOption = statusField.options.find(
+              opt => opt.name.toLowerCase() === process.env.TARGET_STATUS.toLowerCase()
+            );
+            if (!targetOption) return;
+
+            // 2. Update the card's Status field to "In Progress"
+            const mutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            await github.graphql(mutation, {
+              projectId: projectItem.project.id,
+              itemId: projectItem.id,
+              fieldId: statusField.id,
+              optionId: targetOption.id
+            });
+
+            console.log(`Moved issue #${issueNumber} to "${process.env.TARGET_STATUS}".`);
