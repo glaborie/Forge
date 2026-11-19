@@ -42,6 +42,7 @@ if [[ -z "$PROJECT_ID" || "$PROJECT_ID" == "null" ]]; then
 fi
 
 # --- Fetch all items with field values, paginated ---
+# Parent epics and blocked-by edges come from the native issue relations.
 gh api graphql --paginate -f query='
   query($project: ID!, $cursor: String) {
     node(id: $project) {
@@ -51,9 +52,17 @@ gh api graphql --paginate -f query='
           nodes {
             id
             content {
-              ... on DraftIssue   { title }
-              ... on Issue        { title }
-              ... on PullRequest  { title }
+              __typename
+              ... on Issue {
+                number
+                title
+                url
+                state
+                parent { number title }
+                blockedBy(first: 20) { nodes { number title state } }
+              }
+              ... on PullRequest { number title url state }
+              ... on DraftIssue { title }
             }
             fieldValues(first: 30) {
               nodes {
@@ -63,6 +72,10 @@ gh api graphql --paginate -f query='
                 }
                 ... on ProjectV2ItemFieldSingleSelectValue {
                   name
+                  field { ... on ProjectV2FieldCommon { name } }
+                }
+                ... on ProjectV2ItemFieldMilestoneValue {
+                  milestone { title }
                   field { ... on ProjectV2FieldCommon { name } }
                 }
               }
@@ -76,12 +89,18 @@ gh api graphql --paginate -f query='
     [.data.node.items.nodes[]
      | {
          id: .id,
+         type: .content.__typename,
          title: (.content.title // ""),
+         number: (.content.number // null),
+         url: (.content.url // null),
+         state: (.content.state // null),
+         epic: (.content.parent.title // null),
+         blockedby: ([.content.blockedBy.nodes[]?.title] | join("; ")),
          fields: (
            .fieldValues.nodes
            | map(select(.field?.name != null) | {
                key: (.field.name | ascii_downcase | gsub("[^a-z0-9]"; "")),
-               value: (.text // .name // "")
+               value: (.text // .name // .milestone.title // "")
              })
            | from_entries
          )

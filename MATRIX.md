@@ -235,44 +235,26 @@ The GitHub project is the execution layer of this matrix. Each story is tagged w
 
 ### 7.2 Story-to-standard index
 
-| Story | Dimension | Primary standard | Supporting standards |
-| :--- | :--- | :--- | :--- |
-| A1 OTel instrumentation | Operational | NIST AI RMF (Measure) | ISO/IEC 42001 (Cl. 8) |
-| A2 Operational dashboard | Operational | ISO/IEC 42001 (Cl. 8) | — |
-| A3 Immutable audit log | Cross-cutting | CSA AICM | EU AI Act (Art. 12, 13) |
-| A4 httpx auto-instrumentation | Operational | NIST AI RMF (Measure) | ISO/IEC 42001 (Cl. 8) |
-| B1 Golden datasets | Functional | NIST AI RMF (Measure) | EU AI Act (Art. 10) |
-| B2 Failures → candidates | Functional / Temporal | NIST AI RMF | ISO/IEC 42001 (Cl. 10) |
-| B3 Regression in CI | Functional / Temporal | NIST AI RMF | ISO/IEC 42001 (Cl. 9) |
-| C1 LLM-as-judge | Functional | NIST AI RMF | NIST AI 800-3 |
-| C2 Statistical confidence | Functional | NIST AI 800-3 | — |
-| C3 Functional CI gate | Functional | NIST AI RMF | EU AI Act (Art. 15) |
-| D1 Input guardrails | Security | OWASP LLM01, LLM07 | Google SAIF |
-| D2 Output guardrails | Security | OWASP LLM02, LLM05 | EU AI Act (Art. 10) |
-| D3 Adversarial tests in CI | Security | OWASP LLM Top 10; ISO/IEC 42119-8 | Google SAIF |
-| D4 Tool-call authorization | Security | OWASP LLM06 | EU AI Act (Art. 14) |
-| D5 OWASP evidence mapping | Security / Cross-cutting | OWASP LLM Top 10; CSA AICM | — |
-| E1 Circuit breakers | Operational | ISO/IEC 42001 (Cl. 8) | — |
-| E2 Budget & rate limits | Operational | OWASP LLM10 | ISO/IEC 42001 |
-| E3 Latency/error anomaly | Operational | ISO/IEC 42001 (Cl. 9) | — |
-| F1 Drift detection | Temporal | NIST AI RMF (Measure) | ISO/IEC 42001 (Cl. 10) |
-| F2 Canary + auto-rollback | Temporal / Operational | NIST AI RMF (Manage) | EU AI Act (Art. 14) |
-| F3 Audit trail | Temporal / Cross-cutting | ISO/IEC 42001; EU AI Act (Art. 12) | CSA AICM |
-| F4 Incident recurrence | Temporal | NIST AI RMF | ISO/IEC 42001 (Cl. 10) |
-| G1 Control-to-standard map | Cross-cutting | CSA AICM; EU AI Act | NIST AI RMF; ISO/IEC 42001; OWASP |
-| G2 Audit-ready report | Cross-cutting | CSA AICM; EU AI Act | — |
-| G3 Reliability score | Cross-cutting | — (framework internal) | — |
-| G4 Threat landscape (ARTEX) | Security | ENISA FAICP | Google SAIF |
+Story-level dimension and standard assignments live on the issues themselves. The board is the only copy:
+
+https://github.com/users/glaborie/projects/5
+
+Query it with the repository script rather than keeping a table here:
+
+```bash
+./scripts/fetch-items.sh 5 | jq -r '
+  .[] | select(.standard | test("OWASP")) | "\(.number) \(.title)"'
+```
+
+`./scripts/validate-project.sh` fails if any `Standard` value falls outside the vocabulary in §8.
 
 ### 7.3 Milestones to standards readiness
 
-| Milestone | Epics | Standards readiness |
-| :--- | :--- | :--- |
-| **M1 Baseline** | A | NIST AI RMF (Measure, partially) |
-| **M2 Guardrails** | D1, D2, D4, E1 | OWASP LLM01, LLM02, LLM05, LLM06, LLM07, LLM10 |
-| **M3 Evaluation** | B1, B3, C1, C3 | NIST AI RMF (Measure, fully); NIST AI 800-3 |
-| **M4 Red Teaming** | D3, D5, G4 | OWASP LLM Top 10 (full); ISO/IEC 42119-8; ENISA FAICP |
-| **M5 Continuous** | B2, C2, E2, E3, F1–F4, G1–G3 | ISO/IEC 42001 (full); CSA AICM; EU AI Act (Ch. III) |
+M1–M5 are repository milestones; a story's milestone is its readiness record.
+
+```bash
+./scripts/fetch-items.sh 5 | jq -r '.[] | select(.milestone == "M2 Guardrails") | .title'
+```
 
 ### 7.4 Evidence lifecycle
 
@@ -300,7 +282,7 @@ This is the closed loop the matrix describes: execution → evidence → score �
 | `ENISA FAICP` | ENISA Framework for AI Cybersecurity Practices |
 | `EU AI Act` | Regulation (EU) 2024/1689 |
 
-A machine-readable copy of this registry, together with the story→standard index, its invariants and example queries, lives in `standard-index.json`. That file is authoritative for tooling (`G1`, `G2`); this table mirrors it for readers. Update both in the same PR.
+These identifiers are the values the `Standard` field may contain, verbatim, `; `-separated when an item spans several standards. `N/A` marks framework-internal stories. `scripts/validate-project.sh` enforces the list: this table and its `STANDARDS` set change together, in one commit.
 
 > Suggested citation: AgentGuard AI Reliability Matrix v1.0. AgentGuard Project, GitHub, 2026.
 
