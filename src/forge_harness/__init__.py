@@ -28,6 +28,8 @@ from .auth import KeycloakPasswordGrant as KeycloakPasswordGrant
 from .auth import TokenError as TokenError
 from .auth import grants_from_env as grants_from_env
 from .auth import role_from_token as role_from_token
+from .contract import Conformance as Conformance
+from .contract import Spec as Spec
 from .tracing import init_tracing as init_tracing
 from .tracing import noop_tracer as noop_tracer
 
@@ -77,6 +79,7 @@ class Reply:
     finish_reason: str | None = None
     blocked: bool | None = None
     model: str | None = None
+    body: Any = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,8 @@ class Record:
     verdict: str = "unclear"
     response_excerpt: str = ""
     role: str | None = None
+    conformance: str | None = None
+    conformance_detail: str = ""
 
     @property
     def leaked(self) -> bool:
@@ -121,6 +126,7 @@ class Run:
             "by_role": by_role,
             "injections_succeeded": by_verdict.get("injected", 0),
             "unexpected_access": sum(1 for r in self.records if r.verdict == "unexpected_access"),
+            "by_conformance": _count(r.conformance for r in self.records if r.conformance),
             "labelled_leaks": sum(1 for r in self.records if r.leaked),
             # A 401/403 is a verdict, not a failure of the run.
             "errors": sum(
@@ -169,10 +175,12 @@ class Target:
             response = self.client.post(self.path, json=body, headers=headers)
             status = response.status_code
             text, finish_reason, blocked, model = _parse_reply(response)
+            body = _json_or_none(response)
         except httpx.HTTPStatusError as exc:
             # A 403 on model discovery is a denial, not a dead host: keep the status.
             status = exc.response.status_code
             text, finish_reason, blocked, model = _parse_reply(exc.response)
+            body = _json_or_none(exc.response)
         except httpx.HTTPError as exc:
             # A dead target is a result, not a crash: record it and move on.
             status, text, finish_reason, blocked, model = (
@@ -182,6 +190,7 @@ class Target:
                 None,
                 None,
             )
+            body = None
         return Reply(
             status=status,
             text=text,
@@ -189,6 +198,7 @@ class Target:
             finish_reason=finish_reason,
             blocked=blocked,
             model=model,
+            body=body,
         )
 
     def _headers(self) -> dict[str, str]:
@@ -217,9 +227,11 @@ class Runner:
         input_detectors: list[Detector] | None = None,
         output_detectors: list[Detector] | None = None,
         tracer: Tracer | None = None,
+        spec: Spec | None = None,
     ) -> None:
         self.audit = audit
         self.tracer = tracer
+        self.spec = spec
         self.input_detectors = input_detectors or [RegexDetector()]
         # Outputs are judged with leak-shaped rules, not the request-shaped ones.
         self.output_detectors = output_detectors or [RegexDetector(OUTPUT_RULES)]
@@ -240,6 +252,11 @@ class Runner:
         reply = target.send(case.prompt)
         output_labels = self._labels(reply.text, self.output_detectors)
         verdict = self._verdict(case, reply, output_labels)
+        conformance = (
+            self.spec.check(path=target.path, method="post", status=reply.status, body=reply.body)
+            if self.spec is not None
+            else None
+        )
         if span is not None:
             self._annotate(span, case, reply, verdict, input_labels, output_labels)
         record = Record(
@@ -253,6 +270,8 @@ class Runner:
             response_hash=_hash(reply.text),
             verdict=verdict,
             response_excerpt=reply.text[:EXCERPT_CHARS],
+            conformance=conformance.verdict if conformance else None,
+            conformance_detail=conformance.detail if conformance else "",
         )
         self._record(record, case.prompt, reply.text)
         return record
@@ -358,6 +377,20 @@ class Runner:
             reason=",".join(label.split(":", 1)[1] for label in record.response_labels) or "none",
             request_id=record.case_id,
         )
+
+
+def _count(values: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def _json_or_none(response: httpx.Response) -> Any:
+    try:
+        return response.json()
+    except ValueError:
+        return None
 
 
 def _parse_reply(

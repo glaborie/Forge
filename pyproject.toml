@@ -9,10 +9,11 @@ dependencies = [
     "opentelemetry-sdk>=1.30",
     "opentelemetry-exporter-otlp-proto-http>=1.30",
     "opentelemetry-instrumentation-fastapi>=0.51b0",
+    "jsonschema>=4.21",
 ]
 
 [dependency-groups]
-dev = ["mypy>=1.11", "pytest>=8", "ruff>=0.6"]
+dev = ["mypy>=1.11", "pytest>=8", "ruff>=0.6", "types-jsonschema>=4.21"]
 
 [build-system]
 requires = ["hatchling"]
