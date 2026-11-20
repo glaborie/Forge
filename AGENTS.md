@@ -309,7 +309,16 @@ run = Runner(tracer=init_tracing()).run(cases, target)
 
 Spans are named `harness.case <id>` and carry `harness.verdict`, the input/response labels and the HTTP status. An `injected` verdict sets span status ERROR, so a canary echo is visible in the trace list rather than only in the report. `FORGE_OTEL_ENDPOINT` must point at the collector (`http://localhost:14318`); without it, spans are created and dropped.
 
-`Run.summary()` counts `by_verdict` and exposes `injections_succeeded`. `Record.response_excerpt` keeps the first 500 characters so a result can be looked at; the audit log still stores hashes only.
+Roles are first-class. `grants_from_env()` builds one Keycloak grant per role from `BASTION_USER_OPERATOR` / `BASTION_USER_ANALYST` / `BASTION_USER_READONLY` (plus the admin pair), and `run_matrix` runs the corpus once per identity:
+
+```python
+identities = {role: Target(base, token=grant) for role, grant in grants_from_env().items()}
+run = Runner(tracer=init_tracing()).run_matrix(cases, identities)
+```
+
+`Record.role` and a `harness.role` span attribute tag every result, `Case.roles` restricts a case to some identities, and `Case.expect_denied` names the roles where a refusal is the correct outcome — anything else there becomes the `unexpected_access` verdict, which is the finding this matrix exists to produce.
+
+`Run.summary()` counts `by_verdict` and `by_role`, and exposes `injections_succeeded` and `unexpected_access`. A 401/403 is a verdict, not an error, so `errors` counts only real failures. `Record.response_excerpt` keeps the first 500 characters so a result can be looked at; the audit log still stores hashes only.
 
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 

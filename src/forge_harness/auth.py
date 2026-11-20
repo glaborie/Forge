@@ -10,6 +10,8 @@ Credentials come from the environment, never from code or chat:
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import time
 from collections.abc import Callable
@@ -85,3 +87,42 @@ class KeycloakPasswordGrant:
         lifetime = float(payload.get("expires_in", 60))
         self._expires_at = self._clock() + max(lifetime - self.refresh_margin, 0.0)
         return self._token
+
+
+def role_from_token(token: str) -> str | None:
+    """Read the first realm role out of a Keycloak access token.
+
+    The token is decoded, never verified: Forge is a client of the target, not
+    its issuer, and the signature is the gateway's business.
+    """
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+    except (IndexError, ValueError):
+        return None
+    roles = claims.get("realm_access", {}).get("roles", [])
+    return str(roles[0]) if roles else None
+
+
+ROLE_VARIABLES: tuple[tuple[str, str, str], ...] = (
+    # role, username var, password var
+    ("admin", "BASTION_USER", "BASTION_PASSWORD"),
+    ("operator", "BASTION_USER_OPERATOR", "BASTION_PASSWORD_OPERATOR"),
+    ("analyst", "BASTION_USER_ANALYST", "BASTION_PASSWORD_ANALYST"),
+    ("readonly", "BASTION_USER_READONLY", "BASTION_PASSWORD_READONLY"),
+)
+
+
+def grants_from_env(
+    *, transport: httpx.BaseTransport | None = None
+) -> dict[str, KeycloakPasswordGrant]:
+    """One grant per role, for whichever role variables are set."""
+    grants: dict[str, KeycloakPasswordGrant] = {}
+    for role, user_var, password_var in ROLE_VARIABLES:
+        username, password = os.getenv(user_var), os.getenv(password_var)
+        if username and password:
+            grants[role] = KeycloakPasswordGrant(
+                username=username, password=password, transport=transport
+            )
+    return grants
