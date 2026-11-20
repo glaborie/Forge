@@ -44,3 +44,9 @@ jobs:
         run: ./scripts/validate-project.sh
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT_RO }}
+
+      # Config-only: no containers are started, no credentials needed.
+      - name: Validate deploy stack
+        run: |
+          docker compose -f deploy/docker-compose.yml config -q
+          python3 -c "import json; json.load(open('deploy/grafana/dashboards/reliability.json'))"

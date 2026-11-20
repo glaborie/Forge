@@ -21,6 +21,7 @@ text
 ├── pyproject.toml                  ← Python package + tool config
 ├── src/forge_otel/                 ← A1 instrumentation package
 ├── tests/                          ← pytest suite + mock upstream
+├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
 │   ├── fetch-items.sh              ← GraphQL snapshot, flat JSON array
 │   ├── validate-project.sh         ← board consistency gate
@@ -148,7 +149,23 @@ To clear a relation: `gh issue edit <number> --remove-blocked-by <number>`. Ther
 
 The span attributes are the contract A2, E1 and F1 consume; they are enumerated in issue #3 (story A1). Do not rename them without updating that issue and this section.
 
+The same call also emits metrics, so dashboards never derive them from spans:
+
+| Instrument | Type | Unit | Attributes |
+| --- | --- | --- | --- |
+| `gen_ai.client.operation.duration` | histogram | s | `gen_ai.request.model`, `gen_ai.operation.name`, `tenant.id` |
+| `gen_ai.client.token.usage` | counter | {token} | + `gen_ai.token.type` = input/output |
+| `forge.llm.cost.usd` | counter | — | `gen_ai.request.model`, `tenant.id` |
+| `forge.llm.calls` | counter | {call} | + `error` = true/false |
+
+`tenant.id` reaches the outbound call and its metrics through a `ContextVar` set by the inbound middleware, so callers never thread it through.
+
 Tests run offline against `tests/fake_upstream.py`, an OpenAI-compatible FastAPI app, asserting on `InMemorySpanExporter`. No API key and no network are required: `uv run pytest`.
+
+6.6 deploy/ (observability stack)
+`docker compose up -d` inside `deploy/` starts a self-contained stack: the collector receives OTLP, forwards **traces to Langfuse Cloud** and exposes **metrics to Prometheus**, which Grafana reads. Ports are remapped off the defaults (`14317`/`14318`, `19090`, `13000`) so the stack does not collide with anything already running.
+
+Credentials come from `deploy/.env` (git-ignored); copy `deploy/.env.example`. `LANGFUSE_AUTH_STRING` is base64 of `public_key:secret_key`. Langfuse accepts OTLP **HTTP only** — the gRPC receiver exists for other clients, not for Langfuse.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
