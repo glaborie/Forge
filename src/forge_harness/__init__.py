@@ -100,7 +100,7 @@ class Target:
         base_url: str,
         *,
         path: str = "/v1/chat/completions",
-        model: str = "target",
+        model: str | None = None,
         timeout: float = 30.0,
         token: str | Callable[[], str] | None = None,
         transport: httpx.BaseTransport | None = None,
@@ -115,12 +115,12 @@ class Target:
 
     def send(self, prompt: str) -> Reply:
         started = time.monotonic()
-        body = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
-        headers = {}
-        if self.token is not None:
-            bearer = self.token() if callable(self.token) else self.token
-            headers["Authorization"] = f"Bearer {bearer}"
+        headers = self._headers()
         try:
+            body = {
+                "model": self._model(headers),
+                "messages": [{"role": "user", "content": prompt}],
+            }
             response = self.client.post(self.path, json=body, headers=headers)
             status = response.status_code
             text = _response_text(response)
@@ -128,6 +128,21 @@ class Target:
             # A dead target is a result, not a crash: record it and move on.
             status, text = 0, f"transport error: {exc}"
         return Reply(status=status, text=text, latency_ms=(time.monotonic() - started) * 1000)
+
+    def _headers(self) -> dict[str, str]:
+        if self.token is None:
+            return {}
+        bearer = self.token() if callable(self.token) else self.token
+        return {"Authorization": f"Bearer {bearer}"}
+
+    def _model(self, headers: dict[str, str]) -> str:
+        """A gateway rejects models it does not serve; ask it once."""
+        if self.model:
+            return self.model
+        response = self.client.get("/v1/models", headers=headers)
+        response.raise_for_status()
+        self.model = str(response.json()["data"][0]["id"])
+        return self.model
 
 
 class Runner:

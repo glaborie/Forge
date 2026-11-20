@@ -293,7 +293,9 @@ from forge_harness.auth import KeycloakPasswordGrant
 target = Target("http://localhost:8000", token=KeycloakPasswordGrant())
 ```
 
-`KeycloakPasswordGrant` reads `BASTION_TOKEN_URL`, `BASTION_CLIENT_ID`, `BASTION_USERNAME` and `BASTION_PASSWORD`, caches the access token, and refreshes `refresh_margin` seconds before `expires_in` runs out. It raises `TokenError` with Keycloak's own `error_description` rather than a bare HTTP status. A target that 500s, or that is not listening at all, is recorded (`status` 500 or 0) rather than raising: a dead target is a result.
+`KeycloakPasswordGrant` reads `BASTION_TOKEN_URL`, `BASTION_CLIENT_ID`, `BASTION_USERNAME` (or `BASTION_USER`) and `BASTION_PASSWORD`, caches the access token, and refreshes `refresh_margin` seconds before `expires_in` runs out. It raises `TokenError` with Keycloak's own `error_description` rather than a bare HTTP status. A target that 500s, or that is not listening at all, is recorded (`status` 500 or 0) rather than raising: a dead target is a result.
+
+Omit `model=` and the target is asked once via `GET /v1/models`, because a gateway rejects models it does not serve — bastion-agent answers `404 model 'gpt-4o-mini' is not served by this gateway` for anything but its own ids.
 
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 

@@ -4,7 +4,7 @@ Credentials come from the environment, never from code or chat:
 
     BASTION_TOKEN_URL   default http://localhost:8080/realms/bastion/protocol/openid-connect/token
     BASTION_CLIENT_ID   default bastion-cli
-    BASTION_USERNAME
+    BASTION_USERNAME or BASTION_USER
     BASTION_PASSWORD
 """
 
@@ -42,7 +42,7 @@ class KeycloakPasswordGrant:
     ) -> None:
         self.token_url = token_url or os.getenv("BASTION_TOKEN_URL") or DEFAULT_TOKEN_URL
         self.client_id = client_id or os.getenv("BASTION_CLIENT_ID") or DEFAULT_CLIENT_ID
-        self.username = username or os.getenv("BASTION_USERNAME")
+        self.username = username or os.getenv("BASTION_USERNAME") or os.getenv("BASTION_USER")
         self.password = password or os.getenv("BASTION_PASSWORD")
         self.scope = scope
         self.refresh_margin = refresh_margin
@@ -53,7 +53,8 @@ class KeycloakPasswordGrant:
 
         if not self.username or not self.password:
             raise ValueError(
-                "missing credentials: set BASTION_USERNAME and BASTION_PASSWORD (or pass them)"
+                "missing credentials: set BASTION_USERNAME (or BASTION_USER) and "
+                "BASTION_PASSWORD, or pass them"
             )
 
     def __call__(self) -> str:

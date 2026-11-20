@@ -70,6 +70,7 @@ def test_rejects_a_response_without_a_token() -> None:
 
 def test_missing_credentials_fail_at_construction(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("BASTION_USERNAME", raising=False)
+    monkeypatch.delenv("BASTION_USER", raising=False)
     monkeypatch.delenv("BASTION_PASSWORD", raising=False)
 
     with pytest.raises(ValueError, match="BASTION_USERNAME"):
@@ -88,8 +89,21 @@ def test_target_resolves_a_callable_token_per_request(tmp_path: object) -> None:
         seen.append(request.headers["authorization"])
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    target = Target("http://t.test", token=token, transport=httpx.MockTransport(target_handler))
+    target = Target(
+        "http://t.test",
+        model="test-model",
+        token=token,
+        transport=httpx.MockTransport(target_handler),
+    )
     target.send("first")
     target.send("second")
 
     assert seen == ["Bearer token-1", "Bearer token-2"]
+
+
+def test_username_alias_is_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BASTION_USERNAME", raising=False)
+    monkeypatch.setenv("BASTION_USER", "aliased")
+    monkeypatch.setenv("BASTION_PASSWORD", "pass")
+
+    assert KeycloakPasswordGrant().username == "aliased"
