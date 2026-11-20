@@ -13,6 +13,8 @@ src/forge_audit/ — the append-only, hash-chained audit log for guardrail decis
 
 src/forge_guard/ — input guardrails for prompt injection and system-prompt leakage. Contract in §6.9.
 
+src/forge_harness/ — injects a labelled corpus into a target and records both sides. Contract in §6.10.
+
 scripts/ — a small Bash toolchain that reads, validates and triages the GitHub project. Not demos: they are how the board is inspected and moved.
 
 The board itself is the fourth artifact and the one that matters most: **GitHub Project #5 for `glaborie` is the single source of truth for stories.** There is no CSV or JSON mirror. Stories are real issues in this repository, not draft items.
@@ -26,6 +28,8 @@ text
 ├── src/forge_otel/                 ← A1 instrumentation package
 ├── src/forge_audit/                ← A3 audit log
 ├── src/forge_guard/                ← D1 input guardrails
+├── src/forge_harness/              ← H1 inject / record / label
+├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
@@ -266,6 +270,26 @@ guard = Guard(detectors=[ModelDetector(classifier(model="openai/gpt-4o-mini"), b
 **Failure policy: a classifier that cannot answer produces a `classifier_error` finding with action `flag`** — never a silent `allow`, never a `block`. A classifier outage must not pass traffic unexamined, and must not take the API down either. Retries and circuit breaking are E1.
 
 **This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and tool-call authorization is D4; neither is replaced by this package. Treat a block as a signal for logging and review, not as proof the input was safe.
+
+6.10 forge_harness (Python package, not a script)
+Sends each case to a target, labels the input with `forge_guard`, labels the response with the output rules, and writes both halves to the audit log.
+
+```python
+from forge_harness import Runner, Target, load_corpus
+
+cases = load_corpus("harness/corpus/injection.json")
+run = Runner(audit=AuditLog("audit.jsonl")).run(cases, Target("http://localhost:8000", token=TOKEN))
+print(run.summary())  # cases, by_expectation, labelled_leaks, errors
+run.to_json("run.json")
+```
+
+`Case(id, prompt, expectation, tags)` — `expectation` is free text for now ("refuse", "redact", "answer") and is scored in H2, not here. The corpus accepts a JSON array or JSONL.
+
+`Target(base_url, path="/v1/chat/completions", model=..., token=...)` posts an OpenAI-compatible body. A target that 500s, or that is not listening at all, is recorded (`status` 500 or 0) rather than raising: a dead target is a result.
+
+Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
+
+Nothing here blocks. That is the whole point of Forge: the payload must reach the target.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
