@@ -194,9 +194,15 @@ On a headless host there is no OS keyring, so gcx refuses to store credentials u
 from forge_audit import AuditLog
 
 log = AuditLog("audit.jsonl")
-log.record(input_text=prompt, policy="guardrail.input.v1", action="block",
-           reason="prompt_injection", request_id=req_id, tenant_id=tenant)
-log.verify()       # raises ValueError if a record was edited, reordered or removed
+log.record(
+    input_text=prompt,
+    policy="guardrail.input.v1",
+    action="block",
+    reason="prompt_injection",
+    request_id=req_id,
+    tenant_id=tenant,
+)
+log.verify()  # raises ValueError if a record was edited, reordered or removed
 log.to_csv("export.csv")
 log.to_json("export.json")
 ```
