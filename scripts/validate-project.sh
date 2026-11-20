@@ -14,6 +14,9 @@ import json
 import sys
 
 items = json.loads(sys.argv[1])
+# Pull requests are auto-added to the project too; they are not stories and carry
+# no Dimension/Phase/Priority. Only issues are validated.
+items = [i for i in items if i.get("type") == "Issue"]
 # The nine identifiers from MATRIX.md section 8. Update both together.
 # "N/A" is the documented sentinel for framework-internal stories with no
 # external standard (G3 carries a score, not a compliance claim).
