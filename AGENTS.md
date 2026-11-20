@@ -209,6 +209,8 @@ Never mix --field and --id. Pick one addressing mode per gh call.
 
 Idempotency is a hard requirement. Every script must be safe to run twice in a row.
 
+`main` is protected: the `quality-and-tests` job must pass and direct pushes are rejected, including for administrators. Work on a branch and open a pull request (`gh pr create --fill`). Force pushes and branch deletion are blocked, so rewriting history requires dropping the protection rule first. The repository is public, so fork pull requests skip the project-board step — secrets are not exposed to them.
+
 10. When you get stuck
 If a script fails, run it under bash -xv first. The last two lines of trace plus the failing gh or jq command almost always identify the issue by inspection.
 
