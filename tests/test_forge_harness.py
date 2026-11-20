@@ -7,7 +7,7 @@ import httpx
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from forge_audit import AuditLog
-from forge_harness import Case, Record, Runner, Target, init_tracing, load_corpus
+from forge_harness import Case, Record, Runner, Target, init_tracing, load_corpus, role_from_token
 
 
 def answering(text: str, status: int = 200) -> httpx.MockTransport:
@@ -292,3 +292,101 @@ def test_finish_reason_alone_is_enough() -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json=body))
 
     assert verdict_for(transport, Case(id="c", prompt="x")).verdict == "blocked"
+
+
+def test_denied_verdict_on_401_and_403() -> None:
+    assert verdict_for(answering("nope", status=403), Case(id="c", prompt="x")).verdict == "denied"
+    assert verdict_for(answering("nope", status=401), Case(id="c", prompt="x")).verdict == "denied"
+
+
+def test_role_outranks_error_for_4xx_auth() -> None:
+    record = verdict_for(answering("nope", status=403), Case(id="c", prompt="x"))
+    assert record.verdict == "denied"
+
+
+def test_matrix_runs_each_identity_and_tags_records() -> None:
+    ok = answering("Hello there, happy to help with that.")
+    cases = [Case(id="c1", prompt="hi", expectation="answer")]
+    run = Runner().run_matrix(
+        cases,
+        {
+            "admin": Target("http://t.test", model="m", transport=ok),
+            "readonly": Target("http://t.test", model="m", transport=answering("no", status=403)),
+        },
+    )
+
+    assert [(r.role, r.verdict) for r in run.records] == [
+        ("admin", "answered"),
+        ("readonly", "denied"),
+    ]
+    assert run.summary()["by_role"] == {"admin": {"answered": 1}, "readonly": {"denied": 1}}
+
+
+def test_role_allow_list_skips_other_identities() -> None:
+    run = Runner().run_matrix(
+        [Case(id="c", prompt="hi", roles=("operator",))],
+        {
+            "admin": Target("http://t.test", model="m", transport=answering("ok")),
+            "operator": Target("http://t.test", model="m", transport=answering("ok")),
+        },
+    )
+
+    assert [r.role for r in run.records] == ["operator"]
+
+
+def test_unexpected_access_is_the_finding() -> None:
+    case = Case(id="c", prompt="hi", expect_denied=("readonly",))
+    run = Runner().run_matrix(
+        [case],
+        {"readonly": Target("http://t.test", model="m", transport=answering("I did the thing."))},
+    )
+
+    assert run.records[0].verdict == "unexpected_access"
+    assert run.summary()["unexpected_access"] == 1
+
+
+def test_expected_denial_is_not_a_finding() -> None:
+    case = Case(id="c", prompt="hi", expect_denied=("readonly",))
+    run = Runner().run_matrix(
+        [case],
+        {"readonly": Target("http://t.test", model="m", transport=answering("no", status=403))},
+    )
+
+    assert run.records[0].verdict == "denied"
+    assert run.summary()["unexpected_access"] == 0
+
+
+def test_role_is_read_from_the_token() -> None:
+    import base64
+    import json as _json
+
+    def token_with(role: str) -> str:
+        claims = {"realm_access": {"roles": [role]}}
+        body = base64.urlsafe_b64encode(_json.dumps(claims).encode()).decode().rstrip("=")
+        return f"header.{body}.signature"
+
+    assert role_from_token(token_with("readonly")) == "readonly"
+    assert role_from_token("not-a-jwt") is None
+
+
+def test_a_denied_model_discovery_keeps_its_status() -> None:
+    """readonly gets 403 on GET /v1/models; that is a denial, not a dead target."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={"error": {"message": "insufficient role"}})
+
+    target = Target("http://t.test", transport=httpx.MockTransport(handler))
+    record = verdict_for(httpx.MockTransport(handler), Case(id="c", prompt="hi"))
+    assert record.status == 403
+    assert record.verdict == "denied"
+    assert target is not None
+
+
+def test_denials_are_not_counted_as_errors() -> None:
+    run = Runner().run_matrix(
+        [Case(id="c", prompt="hi")],
+        {"readonly": Target("http://t.test", model="m", transport=answering("no", status=403))},
+    )
+
+    assert run.summary()["errors"] == 0
+    assert run.summary()["by_role"] == {"readonly": {"denied": 1}}
