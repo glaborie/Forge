@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,9 @@ import httpx
 
 from forge_audit import AuditLog
 from forge_guard import OUTPUT_RULES, ModelDetector, Normalized, RegexDetector, normalize
+
+from .auth import KeycloakPasswordGrant as KeycloakPasswordGrant
+from .auth import TokenError as TokenError
 
 type Detector = RegexDetector | ModelDetector
 
@@ -98,22 +102,26 @@ class Target:
         path: str = "/v1/chat/completions",
         model: str = "target",
         timeout: float = 30.0,
-        token: str | None = None,
+        token: str | Callable[[], str] | None = None,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.path = path
         self.model = model
-        # Targets commonly require a bearer token the OpenAPI spec may not declare.
-        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        # A callable is resolved per request, so a Keycloak grant can refresh itself.
+        self.token = token
         self.client = httpx.Client(
-            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport, headers=headers
+            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
         )
 
     def send(self, prompt: str) -> Reply:
         started = time.monotonic()
         body = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
+        headers = {}
+        if self.token is not None:
+            bearer = self.token() if callable(self.token) else self.token
+            headers["Authorization"] = f"Bearer {bearer}"
         try:
-            response = self.client.post(self.path, json=body)
+            response = self.client.post(self.path, json=body, headers=headers)
             status = response.status_code
             text = _response_text(response)
         except httpx.HTTPError as exc:

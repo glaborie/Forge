@@ -285,7 +285,15 @@ run.to_json("run.json")
 
 `Case(id, prompt, expectation, tags)` — `expectation` is free text for now ("refuse", "redact", "answer") and is scored in H2, not here. The corpus accepts a JSON array or JSONL.
 
-`Target(base_url, path="/v1/chat/completions", model=..., token=...)` posts an OpenAI-compatible body. A target that 500s, or that is not listening at all, is recorded (`status` 500 or 0) rather than raising: a dead target is a result.
+`Target(base_url, path="/v1/chat/completions", model=..., token=...)` posts an OpenAI-compatible body. `token` accepts a string or a callable, resolved per request, so an expiring grant refreshes itself:
+
+```python
+from forge_harness.auth import KeycloakPasswordGrant
+
+target = Target("http://localhost:8000", token=KeycloakPasswordGrant())
+```
+
+`KeycloakPasswordGrant` reads `BASTION_TOKEN_URL`, `BASTION_CLIENT_ID`, `BASTION_USERNAME` and `BASTION_PASSWORD`, caches the access token, and refreshes `refresh_margin` seconds before `expires_in` runs out. It raises `TokenError` with Keycloak's own `error_description` rather than a bare HTTP status. A target that 500s, or that is not listening at all, is recorded (`status` 500 or 0) rather than raising: a dead target is a result.
 
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 
