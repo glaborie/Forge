@@ -167,6 +167,24 @@ Tests run offline against `tests/fake_upstream.py`, an OpenAI-compatible FastAPI
 
 Credentials come from `.env` at the repo root or in `deploy/` (git-ignored); copy `deploy/.env.example`. Only Langfuse's own three variables are needed — `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` — and `up.sh` derives the `LANGFUSE_AUTH_STRING` (base64 of `public_key:secret_key`) and `LANGFUSE_OTLP_ENDPOINT` (`${LANGFUSE_BASE_URL}/api/public/otel`) that the collector reads. Langfuse accepts OTLP **HTTP only** — the gRPC receiver exists for other clients, not for Langfuse.
 
+`gcx` (the Grafana CLI, ≥ 1.8) is the shortest path to inspecting the running stack, and it is agent-friendly: every command takes `--json`/`--jq`, `gcx commands` lists the surface, and `gcx docs` reads Grafana documentation.
+
+```
+gcx metrics query 'sum(forge_llm_calls_total)'   # PromQL without curl+jq
+gcx datasources list                             # uid, url, readOnly
+gcx dashboards list                              # provisioning metadata per dashboard
+gcx dashboards get forge-reliability -o yaml     # export for diffing
+```
+
+A fresh machine needs a context, since the config is user-scoped and not in this repo:
+
+```
+gcx login local --server http://localhost:13000 --token <service-account-token>
+```
+
+On a headless host there is no OS keyring, so gcx refuses to store credentials until plaintext is allowed explicitly: run `gcx config set credentials.keychain off` once (or export `GCX_KEYCHAIN=off`). The token then lives in `~/.config/gcx/config.yaml` at mode 600. Note that `gcx alert` manages Grafana-managed alert rules and does not see the Prometheus rules in `deploy/prometheus/alerts.yml` — those remain the alerting source of truth.
+
+
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
 
