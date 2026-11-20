@@ -9,6 +9,8 @@ MATRIX.md — the vendor-neutral framework document defining the four reliabilit
 
 src/forge_otel/ — the Python package that instruments an agent serving an OpenAI-compatible API. Contract in §6.5.
 
+src/forge_audit/ — the append-only, hash-chained audit log for guardrail decisions. Contract in §6.7.
+
 scripts/ — a small Bash toolchain that reads, validates and triages the GitHub project. Not demos: they are how the board is inspected and moved.
 
 The board itself is the fourth artifact and the one that matters most: **GitHub Project #5 for `glaborie` is the single source of truth for stories.** There is no CSV or JSON mirror. Stories are real issues in this repository, not draft items.
@@ -20,6 +22,7 @@ text
 ├── MATRIX.md                       ← framework doc
 ├── pyproject.toml                  ← Python package + tool config
 ├── src/forge_otel/                 ← A1 instrumentation package
+├── src/forge_audit/                ← A3 audit log
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
@@ -184,6 +187,23 @@ gcx login local --server http://localhost:13000 --token <service-account-token>
 
 On a headless host there is no OS keyring, so gcx refuses to store credentials until plaintext is allowed explicitly: run `gcx config set credentials.keychain off` once (or export `GCX_KEYCHAIN=off`). The token then lives in `~/.config/gcx/config.yaml` at mode 600. Note that `gcx alert` manages Grafana-managed alert rules and does not see the Prometheus rules in `deploy/prometheus/alerts.yml` — those remain the alerting source of truth.
 
+6.7 forge_audit (Python package, not a script)
+`AuditLog(path)` appends one JSON line per guardrail decision and chains each record to its predecessor's hash.
+
+```python
+from forge_audit import AuditLog
+
+log = AuditLog("audit.jsonl")
+log.record(input_text=prompt, policy="guardrail.input.v1", action="block",
+           reason="prompt_injection", request_id=req_id, tenant_id=tenant)
+log.verify()       # raises ValueError if a record was edited, reordered or removed
+log.to_csv("export.csv")
+log.to_json("export.json")
+```
+
+`input_text` is hashed with SHA-256 and never stored. Records carry `timestamp, input_hash, policy, action, reason, request_id, tenant_id, prev, hash` — the first five are A3's contracted fields, the rest are correlation and chain state.
+
+The guarantee is **tamper-evident, not tamper-proof**: `verify()` detects modification, but anyone with the file can rewrite the whole chain. Real immutability needs WORM storage or shipping each batch to an append-only sink, which is infrastructure this repo does not have. Say so before claiming immutability to an auditor.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
