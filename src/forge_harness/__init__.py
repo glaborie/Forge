@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,9 @@ import httpx
 
 from forge_audit import AuditLog
 from forge_guard import OUTPUT_RULES, ModelDetector, Normalized, RegexDetector, normalize
+
+from .auth import KeycloakPasswordGrant as KeycloakPasswordGrant
+from .auth import TokenError as TokenError
 
 type Detector = RegexDetector | ModelDetector
 
@@ -96,30 +100,49 @@ class Target:
         base_url: str,
         *,
         path: str = "/v1/chat/completions",
-        model: str = "target",
+        model: str | None = None,
         timeout: float = 30.0,
-        token: str | None = None,
+        token: str | Callable[[], str] | None = None,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.path = path
         self.model = model
-        # Targets commonly require a bearer token the OpenAPI spec may not declare.
-        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        # A callable is resolved per request, so a Keycloak grant can refresh itself.
+        self.token = token
         self.client = httpx.Client(
-            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport, headers=headers
+            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
         )
 
     def send(self, prompt: str) -> Reply:
         started = time.monotonic()
-        body = {"model": self.model, "messages": [{"role": "user", "content": prompt}]}
+        headers = self._headers()
         try:
-            response = self.client.post(self.path, json=body)
+            body = {
+                "model": self._model(headers),
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            response = self.client.post(self.path, json=body, headers=headers)
             status = response.status_code
             text = _response_text(response)
         except httpx.HTTPError as exc:
             # A dead target is a result, not a crash: record it and move on.
             status, text = 0, f"transport error: {exc}"
         return Reply(status=status, text=text, latency_ms=(time.monotonic() - started) * 1000)
+
+    def _headers(self) -> dict[str, str]:
+        if self.token is None:
+            return {}
+        bearer = self.token() if callable(self.token) else self.token
+        return {"Authorization": f"Bearer {bearer}"}
+
+    def _model(self, headers: dict[str, str]) -> str:
+        """A gateway rejects models it does not serve; ask it once."""
+        if self.model:
+            return self.model
+        response = self.client.get("/v1/models", headers=headers)
+        response.raise_for_status()
+        self.model = str(response.json()["data"][0]["id"])
+        return self.model
 
 
 class Runner:

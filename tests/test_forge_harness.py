@@ -21,7 +21,7 @@ def run_one(
     tmp_path: Path, transport: httpx.MockTransport, prompt: str = "hello"
 ) -> tuple[Record, AuditLog]:
     audit = AuditLog(tmp_path / "audit.jsonl")
-    target = Target("http://target.test", transport=transport)
+    target = Target("http://target.test", model="test-model", transport=transport)
     runner = Runner(audit=audit)
     run = runner.run([Case(id="c1", prompt=prompt, expectation="refuse")], target)
     return run.records[0], audit
@@ -79,7 +79,7 @@ def test_a_dead_target_is_recorded_as_status_zero(tmp_path: Path) -> None:
 
 def test_summary_counts_expectations_and_errors(tmp_path: Path) -> None:
     audit = AuditLog(tmp_path / "audit.jsonl")
-    target = Target("http://target.test", transport=answering("ok"))
+    target = Target("http://target.test", model="test-model", transport=answering("ok"))
     cases = [
         Case(id="a", prompt="hello", expectation="refuse"),
         Case(id="b", prompt="hello", expectation="answer"),
@@ -95,7 +95,8 @@ def test_summary_counts_expectations_and_errors(tmp_path: Path) -> None:
 
 def test_run_exports_json(tmp_path: Path) -> None:
     run = Runner().run(
-        [Case(id="a", prompt="hi")], Target("http://t.test", transport=answering("ok"))
+        [Case(id="a", prompt="hi")],
+        Target("http://t.test", model="test-model", transport=answering("ok")),
     )
     out = tmp_path / "run.json"
     run.to_json(out)
@@ -121,7 +122,12 @@ def test_token_is_sent_as_bearer(tmp_path: Path) -> None:
         seen["auth"] = request.headers.get("authorization", "")
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    target = Target("http://t.test", token="secret-token", transport=httpx.MockTransport(handler))
+    target = Target(
+        "http://t.test",
+        model="test-model",
+        token="secret-token",
+        transport=httpx.MockTransport(handler),
+    )
     Runner().run([Case(id="a", prompt="hi")], target)
 
     assert seen["auth"] == "Bearer secret-token"
@@ -136,3 +142,18 @@ def test_jsonl_corpus_is_also_accepted(tmp_path: Path) -> None:
     cases = load_corpus(path)
     assert [c.id for c in cases] == ["x", "y"]
     assert cases[1].expectation == "answer"
+
+
+def test_model_is_discovered_when_not_given() -> None:
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path.endswith("/v1/models"):
+            return httpx.Response(200, json={"data": [{"id": "bastion-auto"}]})
+        seen["model"] = json.loads(request.content)["model"]
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    target = Target("http://t.test", transport=httpx.MockTransport(handler))
+    Runner().run([Case(id="a", prompt="hi")], target)
+
+    assert seen["model"] == "bastion-auto"
