@@ -11,6 +11,8 @@ src/forge_otel/ — the Python package that instruments an agent serving an Open
 
 src/forge_audit/ — the append-only, hash-chained audit log for guardrail decisions. Contract in §6.7.
 
+src/forge_guard/ — input guardrails for prompt injection and system-prompt leakage. Contract in §6.9.
+
 scripts/ — a small Bash toolchain that reads, validates and triages the GitHub project. Not demos: they are how the board is inspected and moved.
 
 The board itself is the fourth artifact and the one that matters most: **GitHub Project #5 for `glaborie` is the single source of truth for stories.** There is no CSV or JSON mirror. Stories are real issues in this repository, not draft items.
@@ -23,6 +25,7 @@ text
 ├── pyproject.toml                  ← Python package + tool config
 ├── src/forge_otel/                 ← A1 instrumentation package
 ├── src/forge_audit/                ← A3 audit log
+├── src/forge_guard/                ← D1 input guardrails
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
@@ -223,6 +226,26 @@ Creates the issue, waits for the project's auto-add workflow (falling back to `i
 Rejects any value outside the MATRIX.md §8 vocabulary instead of writing drift. `--dry-run` prints the resolved values and exits without writing.
 
 Exit codes: 0 on success including a clean validation, 1 on bad input, an unknown epic, or a board that fails validation.
+
+6.9 forge_guard (Python package, not a script)
+`Guard().check(text)` screens one input and returns a `Decision` with an action (`allow`/`log`/`flag`/`block`), the findings, and the OWASP risks they map to.
+
+```python
+guard = Guard(audit=AuditLog("audit.jsonl"), review_queue="review.jsonl")
+decision = guard.check(prompt, request_id=req_id, tenant_id=tenant)
+if decision.blocked:
+    raise HTTPException(400, "input rejected")
+```
+
+Rules are **phrase-level**, not word-level, and derive from the OWASP *LLM Prompt Injection Prevention* cheat sheet's attack catalogue. `"how do I delete my account?"` and `"what are the system requirements?"` must stay allowed; both are covered by tests.
+
+Normalisation produces a **screened copy**, never the text that gets forwarded: NFKC, zero-width and Unicode-tag stripping, and Base64/hex candidates decoded for inspection only. Anything normalisation changed is reported as a finding (`invisible_characters`, `encoded_payload`, `input_truncated`) rather than silently fixed.
+
+`ModelDetector(classify)` wraps a classifier the deployment supplies — it returns `(category, score)` and the detector applies `block_at`/`flag_at` thresholds. No model is bundled: naming one here would be a dependency nobody asked for, and the agent already talks to an OpenAI-compatible endpoint.
+
+Actions are configurable per category via `policy={...}`; flagged decisions are appended to the review queue and every non-`allow` decision goes to the audit log (A3).
+
+**This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and tool-call authorization is D4; neither is replaced by this package. Treat a block as a signal for logging and review, not as proof the input was safe.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.

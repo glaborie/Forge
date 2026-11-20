@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-Action = Literal["allow", "block", "redact", "flag"]
+Action = Literal["allow", "block", "redact", "flag", "log"]
 
 GENESIS = "0" * 64
 
