@@ -5,7 +5,7 @@ import json
 import httpx
 import pytest
 
-from forge_guard import ClassifierUnavailable, Guard, ModelDetector
+from forge_guard import ClassifierUnavailable, Guard, ModelDetector, normalize
 from forge_guard.openrouter import classifier
 
 
@@ -24,7 +24,10 @@ def verdict(score: float, category: str = "prompt_injection") -> dict[str, objec
 
 def guard_with(transport: httpx.MockTransport, **kwargs: object) -> Guard:
     classify = classifier(model="test/model", api_key="test-key", transport=transport, **kwargs)  # type: ignore[arg-type]
-    return Guard(detectors=[ModelDetector(classify)])
+    return Guard(
+        detectors=[ModelDetector(classify)],
+        policy={"prompt_injection": "block", "jailbreak": "block", "system_prompt_leak": "block"},
+    )
 
 
 def test_high_score_blocks() -> None:
@@ -40,8 +43,9 @@ def test_low_score_allows() -> None:
 
 
 def test_mid_score_flags() -> None:
-    decision = guard_with(client_returning(verdict(0.6))).check("something odd")
-    assert decision.action == "flag"
+    classify = classifier(model="m", api_key="k", transport=client_returning(verdict(0.6)))
+    findings = ModelDetector(classify).detect(normalize("something odd"))
+    assert findings[0].action == "flag"
 
 
 def test_fenced_json_is_parsed() -> None:

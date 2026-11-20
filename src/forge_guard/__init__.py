@@ -10,6 +10,9 @@ Two deliberate choices follow from it:
 
 * Rules match **phrases**, not single words. `delete` or `system` on their own
   appear in benign requests; flagging them blocks real users.
+* The default action is **observe**, not block. Forge stress-tests target systems
+  with adversarial input; a guard that blocked the payload would stop the test
+  from happening. Enforcement is opt-in via `policy={...}`.
 * Screened text is a *copy*. Normalisation is applied for matching only, never
   to what gets forwarded to the model, and anything normalisation had to change
   is reported so a human can look at it.
@@ -281,8 +284,12 @@ class Guard:
         self.review_queue = Path(review_queue) if review_queue else None
         if self.review_queue:
             self.review_queue.parent.mkdir(parents=True, exist_ok=True)
+        # Observe by default: these payloads are the point of the harness. A
+        # caller that wants enforcement passes policy={"prompt_injection": "block"}.
         self.policy: dict[str, Action] = {
-            # Screening is not a boundary: obfuscation is a signal, not a verdict.
+            "prompt_injection": "log",
+            "jailbreak": "log",
+            "system_prompt_leak": "log",
             "obfuscation": "flag",
             **(policy or {}),
         }
