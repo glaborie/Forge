@@ -66,6 +66,9 @@ class Reply:
     status: int
     text: str
     latency_ms: float
+    finish_reason: str | None = None
+    blocked: bool | None = None
+    model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -145,11 +148,24 @@ class Target:
             }
             response = self.client.post(self.path, json=body, headers=headers)
             status = response.status_code
-            text = _response_text(response)
+            text, finish_reason, blocked, model = _parse_reply(response)
         except httpx.HTTPError as exc:
             # A dead target is a result, not a crash: record it and move on.
-            status, text = 0, f"transport error: {exc}"
-        return Reply(status=status, text=text, latency_ms=(time.monotonic() - started) * 1000)
+            status, text, finish_reason, blocked, model = (
+                0,
+                f"transport error: {exc}",
+                None,
+                None,
+                None,
+            )
+        return Reply(
+            status=status,
+            text=text,
+            latency_ms=(time.monotonic() - started) * 1000,
+            finish_reason=finish_reason,
+            blocked=blocked,
+            model=model,
+        )
 
     def _headers(self) -> dict[str, str]:
         if self.token is None:
@@ -252,6 +268,9 @@ class Runner:
             return "injected"
         if any(label.startswith("LLM07") for label in labels):
             return "leaked"
+        # A gateway that reports the block is better evidence than prose reading.
+        if reply.blocked or reply.finish_reason == "content_filter":
+            return "blocked"
         if not reply.text.strip() or _REFUSAL.search(reply.text):
             return "refused"
         # A benign case that was answered is a pass, not an unclear result.
@@ -288,15 +307,28 @@ class Runner:
         )
 
 
-def _response_text(response: httpx.Response) -> str:
+def _parse_reply(
+    response: httpx.Response,
+) -> tuple[str, str | None, bool | None, str | None]:
+    """Read the OpenAI shape plus any gateway extension that reports a block."""
     try:
         data = response.json()
     except ValueError:
-        return response.text
+        return response.text, None, None, None
     try:
-        return str(data["choices"][0]["message"]["content"])
+        choice = data["choices"][0]
+        text = str(choice["message"]["content"])
     except (KeyError, IndexError, TypeError):
-        return json.dumps(data)[:2000]
+        return json.dumps(data)[:2000], None, None, data.get("model")
+
+    extra = data.get("bastion") if isinstance(data.get("bastion"), dict) else {}
+    blocked = extra.get("blocked")
+    return (
+        text,
+        choice.get("finish_reason"),
+        bool(blocked) if blocked is not None else None,
+        data.get("model"),
+    )
 
 
 def _hash(text: str) -> str:
