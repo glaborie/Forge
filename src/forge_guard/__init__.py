@@ -110,6 +110,30 @@ DEFAULT_RULES: tuple[Rule, ...] = (
 )
 
 
+# Output-side rules: what a leaked system prompt looks like coming back, rather
+# than a request for one. D2 extends this with PII.
+OUTPUT_RULES: tuple[Rule, ...] = (
+    _rule(
+        "leaked_system_prompt",
+        r"\bmy\s+(system\s+)?(prompt|instructions)\s+(says|are|is)\b",
+        "system_prompt_leak",
+        "LLM07",
+    ),
+    _rule(
+        "preamble_leak",
+        r"\byou\s+are\s+(a|an)\s+[a-z\s]{0,40}(assistant|ai|model)\b",
+        "system_prompt_leak",
+        "LLM07",
+    ),
+    _rule(
+        "labelled_instructions",
+        r"(?m)^\s*(system|instructions)\s*:",
+        "system_prompt_leak",
+        "LLM07",
+    ),
+)
+
+
 @dataclass
 class Normalized:
     """A screened copy of the input, plus what screening had to change."""
