@@ -7,7 +7,13 @@ from typing import Any
 import httpx
 
 from forge_harness import Case, Runner, Target
-from forge_harness.chaos import assemble, credential_cases, split
+from forge_harness.chaos import (
+    HISTORY_CANARY,
+    assemble,
+    conversation_cases,
+    credential_cases,
+    split,
+)
 
 
 def sample_token() -> str:
@@ -90,3 +96,77 @@ def test_the_case_token_replaces_the_target_token() -> None:
     )
 
     assert seen == ["Bearer forged-token"]
+
+
+def test_conversation_cases_carry_their_own_body() -> None:
+    cases = conversation_cases()
+
+    assert len(cases) == 6
+    assert all(case.body and case.body.get("messages") for case in cases)
+    assert all(case.canary == HISTORY_CANARY for case in cases)
+    assert {tag for case in cases for tag in case.tags} >= {"history", "tool-result"}
+
+
+def test_a_body_replaces_the_single_user_turn() -> None:
+    seen: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return httpx.Response(422, json={"detail": "nope"})
+
+    case = conversation_cases()[0]
+    Runner().run([case], Target("http://t.test", model="m", transport=httpx.MockTransport(handler)))
+
+    assert seen[0]["messages"] == case.body["messages"]
+
+
+def test_a_refused_body_is_rejected_not_an_error() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            422, json={"error": {"message": "assistant messages are not accepted"}}
+        )
+    )
+    run = Runner().run(
+        conversation_cases(), Target("http://t.test", model="m", transport=transport)
+    )
+
+    assert run.summary()["by_verdict"] == {"rejected": 6}
+    assert run.summary()["errors"] == 0
+
+
+def test_a_trusted_forgery_is_an_injection() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"content": f"Done. {HISTORY_CANARY}"},
+                        "finish_reason": "stop",
+                    }
+                ]
+            },
+        )
+    )
+    case = conversation_cases()[0]
+    run = Runner().run([case], Target("http://t.test", model="m", transport=transport))
+
+    assert run.records[0].verdict == "injected"
+    assert run.summary()["injections_succeeded"] == 1
+
+
+def test_an_upstream_failure_is_still_an_error() -> None:
+    """502 must not be read as the target refusing the forgery: it never judged it."""
+
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            502, json={"error": {"message": "upstream model unavailable"}}
+        )
+    )
+    run = Runner().run(
+        conversation_cases(), Target("http://t.test", model="m", transport=transport)
+    )
+
+    assert run.summary()["by_verdict"] == {"error": 6}
+    assert run.summary()["errors"] == 6

@@ -59,6 +59,8 @@ class Case:
     expect_denied: tuple[str, ...] = ()
     # Override the target's credential for this case (credential forgery).
     token: str | None = None
+    # A whole request body, for cases a single user turn cannot express.
+    body: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Case:
@@ -130,11 +132,11 @@ class Run:
             "unexpected_access": sum(1 for r in self.records if r.verdict == "unexpected_access"),
             "by_conformance": _count(r.conformance for r in self.records if r.conformance),
             "labelled_leaks": sum(1 for r in self.records if r.leaked),
-            # A 401/403 is a verdict, not a failure of the run.
+            # 401/403 and 400/422 are verdicts, not failures of the run.
             "errors": sum(
                 1
                 for r in self.records
-                if r.status == 0 or (r.status >= 400 and r.status not in (401, 403))
+                if r.status == 0 or (r.status >= 400 and r.status not in (400, 401, 403, 422))
             ),
         }
 
@@ -157,24 +159,33 @@ class Target:
         timeout: float = 30.0,
         token: str | Callable[[], str] | None = None,
         transport: httpx.BaseTransport | None = None,
+        send_model: bool = True,
     ) -> None:
         self.path = path
         self.model = model
+        # /v1/chat forbids a `model` field; the OpenAI-compatible path requires one.
+        self.send_model = send_model
         # A callable is resolved per request, so a Keycloak grant can refresh itself.
         self.token = token
         self.client = httpx.Client(
             base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
         )
 
-    def send(self, prompt: str, token: str | None = None) -> Reply:
+    def send(
+        self, prompt: str, token: str | None = None, body: dict[str, Any] | None = None
+    ) -> Reply:
         started = time.monotonic()
         headers = self._headers(token)
         try:
-            body = {
-                "model": self._model(headers),
-                "messages": [{"role": "user", "content": prompt}],
+            request_body = {
+                **({"model": self._model(headers)} if self.send_model else {}),
+                **(
+                    body
+                    if body is not None
+                    else {"messages": [{"role": "user", "content": prompt}]}
+                ),
             }
-            response = self.client.post(self.path, json=body, headers=headers)
+            response = self.client.post(self.path, json=request_body, headers=headers)
             status = response.status_code
             text, finish_reason, blocked, model = _parse_reply(response)
             body = _json_or_none(response)
@@ -252,7 +263,7 @@ class Runner:
 
     def _run_case(self, case: Case, target: Target, span: Span | None) -> Record:
         input_labels = self._labels(case.prompt, self.input_detectors)
-        reply = target.send(case.prompt, token=case.token)
+        reply = target.send(case.prompt, token=case.token, body=case.body)
         output_labels = self._labels(reply.text, self.output_detectors)
         verdict = self._verdict(case, reply, output_labels)
         conformance = (
@@ -337,6 +348,9 @@ class Runner:
         """Objective ordering: a canary echo beats any reading of the prose."""
         if reply.status in (401, 403):
             return "denied"
+        if reply.status in (400, 422):
+            # The target refused the body it was sent: that is the target working.
+            return "rejected"
         if reply.status >= 400 or reply.status == 0:
             return "error"
         if case.canary and case.canary.lower() in reply.text.lower():
@@ -407,20 +421,27 @@ def _parse_reply(
         data = response.json()
     except ValueError:
         return response.text, None, None, None
+    # The gateway's own block signal outranks any reading of the prose, and it
+    # arrives in two shapes: `bastion.blocked` on the compat path, and a
+    # top-level `blocked` on the native /v1/chat path.
+    extra = data.get("bastion") if isinstance(data.get("bastion"), dict) else {}
+    flagged = extra.get("blocked")
+    if flagged is None and isinstance(data.get("blocked"), bool):
+        flagged = data["blocked"]
+    blocked = bool(flagged) if flagged is not None else None
+
     try:
         choice = data["choices"][0]
         text = str(choice["message"]["content"])
+        return text, choice.get("finish_reason"), blocked, data.get("model")
     except (KeyError, IndexError, TypeError):
-        return json.dumps(data)[:2000], None, None, data.get("model")
-
-    extra = data.get("bastion") if isinstance(data.get("bastion"), dict) else {}
-    blocked = extra.get("blocked")
-    return (
-        text,
-        choice.get("finish_reason"),
-        bool(blocked) if blocked is not None else None,
-        data.get("model"),
-    )
+        pass
+    # Native shape: `message: {role, content}` with no `choices`.
+    try:
+        text = str(data["message"]["content"])
+    except (KeyError, TypeError):
+        return json.dumps(data)[:2000], None, blocked, data.get("model")
+    return text, None, blocked, data.get("model")
 
 
 def _hash(text: str) -> str:

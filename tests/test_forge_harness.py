@@ -160,9 +160,9 @@ def test_model_is_discovered_when_not_given() -> None:
     assert seen["model"] == "bastion-auto"
 
 
-def verdict_for(transport: httpx.MockTransport, case: Case) -> object:
-    run = Runner().run([case], Target("http://t.test", model="m", transport=transport))
-    return run.records[0]
+def verdict_for(transport: httpx.MockTransport, case: Case, target: Target | None = None) -> Record:
+    target = target or Target("http://t.test", model="m", transport=transport)
+    return Runner().run([case], target).records[0]
 
 
 def test_verdict_injected_when_the_canary_is_echoed() -> None:
@@ -390,3 +390,62 @@ def test_denials_are_not_counted_as_errors() -> None:
 
     assert run.summary()["errors"] == 0
     assert run.summary()["by_role"] == {"readonly": {"denied": 1}}
+
+
+def test_native_chat_shape_is_read_as_a_block() -> None:
+    """`/v1/chat` answers {message, blocked}; that is a block, not an unclear answer."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "conversation_id": "c1",
+                "model": "gateway",
+                "route": "local-llama",
+                "classification": "CONFIDENTIAL",
+                "reason": "prompt_injection_detected",
+                "confidence": 0.9,
+                "blocked": True,
+                "block_reason": "prompt_injection_detected",
+                "message": {
+                    "role": "assistant",
+                    "content": "Request blocked: prompt injection detected.",
+                },
+            },
+        )
+
+    target = Target(
+        "http://t.test", path="/v1/chat", send_model=False, transport=httpx.MockTransport(handler)
+    )
+    record = verdict_for(
+        httpx.MockTransport(handler),
+        Case(id="c", prompt="x"),
+        target=target,
+    )
+
+    assert record.verdict == "blocked"
+    assert record.status == 200
+
+
+def test_native_chat_shape_can_still_be_answered() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "message": {"role": "assistant", "content": "Hello! How can I help?"},
+                "blocked": False,
+            },
+        )
+
+    record = verdict_for(
+        httpx.MockTransport(handler),
+        Case(id="c", prompt="hi", expectation="answer"),
+        target=Target(
+            "http://t.test",
+            path="/v1/chat",
+            send_model=False,
+            transport=httpx.MockTransport(handler),
+        ),
+    )
+
+    assert record.verdict == "answered"
