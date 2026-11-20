@@ -18,12 +18,16 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from opentelemetry import trace
+from opentelemetry.trace import Span, Status, StatusCode, Tracer
 
 from forge_audit import AuditLog
 from forge_guard import OUTPUT_RULES, ModelDetector, Normalized, RegexDetector, normalize
 
 from .auth import KeycloakPasswordGrant as KeycloakPasswordGrant
 from .auth import TokenError as TokenError
+from .tracing import init_tracing as init_tracing
+from .tracing import noop_tracer as noop_tracer
 
 type Detector = RegexDetector | ModelDetector
 
@@ -172,8 +176,10 @@ class Runner:
         audit: AuditLog | None = None,
         input_detectors: list[Detector] | None = None,
         output_detectors: list[Detector] | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         self.audit = audit
+        self.tracer = tracer
         self.input_detectors = input_detectors or [RegexDetector()]
         # Outputs are judged with leak-shaped rules, not the request-shaped ones.
         self.output_detectors = output_detectors or [RegexDetector(OUTPUT_RULES)]
@@ -181,26 +187,62 @@ class Runner:
     def run(self, cases: list[Case], target: Target) -> Run:
         run = Run()
         for case in cases:
-            input_labels = self._labels(case.prompt, self.input_detectors)
-            reply = target.send(case.prompt)
-            output_labels = self._labels(reply.text, self.output_detectors)
-
-            verdict = self._verdict(case, reply, output_labels)
-            record = Record(
-                case_id=case.id,
-                expectation=case.expectation,
-                status=reply.status,
-                latency_ms=round(reply.latency_ms, 1),
-                input_labels=input_labels,
-                response_labels=output_labels,
-                input_hash=_hash(case.prompt),
-                response_hash=_hash(reply.text),
-                verdict=verdict,
-                response_excerpt=reply.text[:EXCERPT_CHARS],
-            )
-            run.records.append(record)
-            self._record(record, case.prompt, reply.text)
+            span = self._start_span(case, target)
+            if span is None:
+                run.records.append(self._run_case(case, target, None))
+            else:
+                with trace.use_span(span, end_on_exit=True):
+                    run.records.append(self._run_case(case, target, span))
         return run
+
+    def _run_case(self, case: Case, target: Target, span: Span | None) -> Record:
+        input_labels = self._labels(case.prompt, self.input_detectors)
+        reply = target.send(case.prompt)
+        output_labels = self._labels(reply.text, self.output_detectors)
+        verdict = self._verdict(case, reply, output_labels)
+        if span is not None:
+            self._annotate(span, case, reply, verdict, input_labels, output_labels)
+        record = Record(
+            case_id=case.id,
+            expectation=case.expectation,
+            status=reply.status,
+            latency_ms=round(reply.latency_ms, 1),
+            input_labels=input_labels,
+            response_labels=output_labels,
+            input_hash=_hash(case.prompt),
+            response_hash=_hash(reply.text),
+            verdict=verdict,
+            response_excerpt=reply.text[:EXCERPT_CHARS],
+        )
+        self._record(record, case.prompt, reply.text)
+        return record
+
+    def _start_span(self, case: Case, target: Target) -> Span | None:
+        if self.tracer is None:
+            return None
+        return self.tracer.start_span(f"harness.case {case.id}")
+
+    def _annotate(
+        self,
+        span: Span,
+        case: Case,
+        reply: Reply,
+        verdict: str,
+        input_labels: tuple[str, ...],
+        output_labels: tuple[str, ...],
+    ) -> None:
+        span.set_attribute("harness.case.id", case.id)
+        span.set_attribute("harness.case.expectation", case.expectation)
+        span.set_attribute("harness.verdict", verdict)
+        span.set_attribute("harness.input.labels", ",".join(input_labels))
+        span.set_attribute("harness.response.labels", ",".join(output_labels))
+        span.set_attribute("http.response.status_code", reply.status)
+        span.set_attribute("harness.latency_ms", round(reply.latency_ms, 1))
+        if verdict == "injected":
+            # An echo of the canary is the failure this harness exists to catch.
+            span.set_status(Status(StatusCode.ERROR, "canary echoed"))
+        elif verdict == "error":
+            span.set_status(Status(StatusCode.ERROR, "target error"))
 
     def _verdict(self, case: Case, reply: Reply, labels: tuple[str, ...]) -> str:
         """Objective ordering: a canary echo beats any reading of the prose."""
