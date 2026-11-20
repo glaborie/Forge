@@ -28,6 +28,7 @@ text
 ├── scripts/
 │   ├── fetch-items.sh              ← GraphQL snapshot, flat JSON array
 │   ├── validate-project.sh         ← board consistency gate
+│   ├── new-issue.sh                ← create a story with every field set
 │   ├── triage-ready.sh             ← Backlog → Ready for P0s
 │   └── block.sh                    ← set native blocked-by relations
 └── .github/workflows/
@@ -211,6 +212,18 @@ log.to_json("export.json")
 
 The guarantee is **tamper-evident, not tamper-proof**: `verify()` detects modification, but anyone with the file can rewrite the whole chain. Real immutability needs WORM storage or shipping each batch to an append-only sink, which is infrastructure this repo does not have. Say so before claiming immutability to an auditor.
 
+6.8 new-issue.sh
+```
+./scripts/new-issue.sh --title T --body-file F --dimension D --phase P \
+                       --priority P --standard S --milestone M --epic "Epic X" \
+                       [--labels a,b] [--dry-run]
+```
+Creates the issue, waits for the project's auto-add workflow (falling back to `item-add`), sets Dimension/Phase/Priority/Standard, sets the repository milestone, attaches the issue to its epic as a sub-issue, then runs `validate-project.sh`.
+
+Rejects any value outside the MATRIX.md §8 vocabulary instead of writing drift. `--dry-run` prints the resolved values and exits without writing.
+
+Exit codes: 0 on success including a clean validation, 1 on bad input, an unknown epic, or a board that fails validation.
+
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
 
@@ -233,14 +246,18 @@ TestClient re-raises the endpoint's exception	raise_server_exceptions=True is th
 
 8. Canonical workflows for agents
 8.1 Creating a story
-bash
-gh issue create --repo glaborie/Forge --title "A4. …" --body "As a …, I want …, so that …
-AC:
-- …" --label story,observability
-# it is auto-added to project 5; give the workflow a few seconds, then set fields
-gh issue edit <num> --milestone "M1 Baseline"
-./scripts/validate-project.sh
-Then set Priority, Dimension, Phase and Standard on the project item, attach it to its epic as a sub-issue, and add dependencies with ./block.sh. Re-run the validator.
+Use the script rather than the manual sequence; it sets every field, waits out the auto-add race, attaches the epic and validates:
+
+```
+./scripts/new-issue.sh --title "A6. …" --body-file /tmp/body.md \
+  --dimension Operational --phase Baseline --priority P2 \
+  --standard "NIST AI RMF" --milestone "M1 Baseline" \
+  --epic "Epic A" --labels story,observability
+```
+
+`--dry-run` prints the resolved values without writing. Add dependencies afterwards with `./block.sh "<story>" "<blocker>"`.
+
+The same procedure is packaged as the `capture-issue` skill (`.agents/skills/capture-issue/SKILL.md`), so an agent reading only skill descriptions finds it.
 
 8.2 Daily standup check
 bash
