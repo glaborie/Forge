@@ -228,13 +228,20 @@ Rejects any value outside the MATRIX.md §8 vocabulary instead of writing drift.
 Exit codes: 0 on success including a clean validation, 1 on bad input, an unknown epic, or a board that fails validation.
 
 6.9 forge_guard (Python package, not a script)
-`Guard().check(text)` screens one input and returns a `Decision` with an action (`allow`/`log`/`flag`/`block`), the findings, and the OWASP risks they map to.
+Forge is a **stress-test harness**: it sends adversarial input to a target system on purpose, so the guard's job is to label and record that input, not to stop it. `Guard().check(text)` returns a `Decision` with an action (`allow`/`log`/`flag`/`block`), the findings, and the OWASP risks they map to.
+
+**The default action is `log`, not `block`.** Detection categories map to observe by default; a payload that is blocked never reaches the target and the test does not happen. Enforcement is opt-in:
+
+```python
+Guard(policy={"prompt_injection": "block", "system_prompt_leak": "block"})
+```
+
+The harness path looks like this — no `blocked` check, because the payload must reach the target:
 
 ```python
 guard = Guard(audit=AuditLog("audit.jsonl"), review_queue="review.jsonl")
-decision = guard.check(prompt, request_id=req_id, tenant_id=tenant)
-if decision.blocked:
-    raise HTTPException(400, "input rejected")
+decision = guard.check(prompt, request_id=req_id, tenant_id=tenant)  # action == "log"
+send_to_target(prompt)
 ```
 
 Rules are **phrase-level**, not word-level, and derive from the OWASP *LLM Prompt Injection Prevention* cheat sheet's attack catalogue. `"how do I delete my account?"` and `"what are the system requirements?"` must stay allowed; both are covered by tests.
@@ -243,7 +250,7 @@ Normalisation produces a **screened copy**, never the text that gets forwarded: 
 
 `ModelDetector(classify)` wraps a classifier the deployment supplies — it returns `(category, score)` and the detector applies `block_at`/`flag_at` thresholds. No model is bundled: naming one here would be a dependency nobody asked for, and the agent already talks to an OpenAI-compatible endpoint.
 
-Actions are configurable per category via `policy={...}`; flagged decisions are appended to the review queue and every non-`allow` decision goes to the audit log (A3).
+Flagged decisions are appended to the review queue and every non-`allow` decision goes to the audit log (A3), so an observed payload still becomes evidence even though it was forwarded.
 
 Wiring a real classifier:
 
