@@ -30,6 +30,19 @@ STATUSES = {"Backlog", "Ready", "In progress", "Done", "Tracking"}
 errors: list[str] = []
 titles = [i["title"] for i in items]
 epics = {i["title"] for i in items if i["title"].startswith("Epic ")}
+stories = [i for i in items if not i["title"].startswith("Epic ")]
+
+# A token with only `read:project` can read items and fields but not issue
+# relations, which come back null instead of erroring. Say so plainly rather
+# than emitting one "no parent epic" per story.
+if stories and epics and not any(i.get("epic") for i in stories):
+    print(
+        "error: no story reports a parent epic, so the issues' relations are not visible.\n"
+        "       The token needs the classic 'repo' scope as well as 'read:project':\n"
+        "       'read:project' alone reads the project but returns null for parent and blockedBy.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def check(item, field, allowed, required=True):

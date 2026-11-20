@@ -123,7 +123,7 @@ Prints `OK: N items, M epics, no drift` and exits 0, or lists every problem and 
 
 Run it before committing any board change, and after any script that writes to the project. It is the only thing standing between you and the drift that used to live in the CSV and the JSON.
 
-CI runs it on every push and pull request to `main` using `secrets.PROJECT_PAT_RO`, which has `repo` + `read:project` and therefore cannot mutate the board. Fork PRs skip the step, because repository secrets are not exposed to them; the `if:` condition resolves the secret's presence into `env.HAS_PROJECT_PAT` at job level, since `secrets` cannot be used in an `if:` directly. Note that classic tokens have no read-only `repo` scope, so `PROJECT_PAT_RO` can still write issues — it is read-only *on the project*, not on the repository.
+CI runs it on every push and pull request to `main` using `secrets.PROJECT_PAT_RO`, which must carry **`repo` + `read:project`**. With `read:project` alone the project reads fine but every issue relation returns null, so the validator aborts with an explicit message rather than one "no parent epic" per story — that failure mode cost a CI cycle once. Fork PRs skip the step, because repository secrets are not exposed to them; the `if:` condition resolves the secret's presence into `env.HAS_PROJECT_PAT` at job level, since `secrets` cannot be used in an `if:` directly. Classic tokens have no read-only `repo` scope, so `PROJECT_PAT_RO` can still write issues — it is read-only *on the project*, not on the repository.
 
 6.3 triage-ready.sh
 bash
