@@ -163,9 +163,9 @@ The same call also emits metrics, so dashboards never derive them from spans:
 Tests run offline against `tests/fake_upstream.py`, an OpenAI-compatible FastAPI app, asserting on `InMemorySpanExporter`. No API key and no network are required: `uv run pytest`.
 
 6.6 deploy/ (observability stack)
-`docker compose up -d` inside `deploy/` starts a self-contained stack: the collector receives OTLP, forwards **traces to Langfuse Cloud** and exposes **metrics to Prometheus**, which Grafana reads. Ports are remapped off the defaults (`14317`/`14318`, `19090`, `13000`) so the stack does not collide with anything already running.
+`./deploy/up.sh` starts a self-contained stack: the collector receives OTLP, forwards **traces to Langfuse Cloud** and exposes **metrics to Prometheus**, which Grafana reads. Ports are remapped off the defaults (`14317`/`14318`, `19090`, `13000`) so the stack does not collide with anything already running.
 
-Credentials come from `deploy/.env` (git-ignored); copy `deploy/.env.example`. `LANGFUSE_AUTH_STRING` is base64 of `public_key:secret_key`. Langfuse accepts OTLP **HTTP only** — the gRPC receiver exists for other clients, not for Langfuse.
+Credentials come from `.env` at the repo root or in `deploy/` (git-ignored); copy `deploy/.env.example`. Only Langfuse's own three variables are needed — `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` — and `up.sh` derives the `LANGFUSE_AUTH_STRING` (base64 of `public_key:secret_key`) and `LANGFUSE_OTLP_ENDPOINT` (`${LANGFUSE_BASE_URL}/api/public/otel`) that the collector reads. Langfuse accepts OTLP **HTTP only** — the gRPC receiver exists for other clients, not for Langfuse.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
