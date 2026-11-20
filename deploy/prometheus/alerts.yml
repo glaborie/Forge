@@ -1,0 +1,54 @@
+# Alert thresholds from MATRIX.md section 3.3.
+#
+# Metric names are what the collector's Prometheus exporter derives from the
+# OTel instruments in forge_otel:
+#   gen_ai.client.operation.duration -> gen_ai_client_operation_duration_seconds_bucket (seconds)
+#   gen_ai.client.token.usage        -> gen_ai_client_token_usage_total
+#   forge.llm.calls                  -> forge_llm_calls_total{error="true|false"}
+#
+# Delivery is out of scope: without an Alertmanager these rules fire visibly in
+# Prometheus and in the Grafana alert list, but nobody is paged.
+groups:
+  - name: operational-reliability
+    rules:
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket[5m]))) > 5
+        for: 10m
+        labels:
+          severity: warning
+          standard: "ISO/IEC 42001"
+        annotations:
+          summary: "LLM call P95 latency above 5s"
+          description: "P95 is {{ $value | humanize }}s, threshold is 5s (MATRIX.md 3.3)."
+
+      - alert: HighErrorRate
+        expr: |
+          (sum(rate(forge_llm_calls_total{error="true"}[5m])) or vector(0))
+            /
+          sum(rate(forge_llm_calls_total[5m])) > 0.01
+        for: 10m
+        labels:
+          severity: critical
+          standard: "ISO/IEC 42001"
+        annotations:
+          summary: "LLM call error rate above 1%"
+          description: "Error rate is {{ $value | humanizePercentage }}, threshold is 1% (MATRIX.md 3.3)."
+
+      - alert: TokensPerRequestHigh
+        expr: |
+          sum(rate(gen_ai_client_token_usage_total[5m]))
+            /
+          sum(rate(forge_llm_calls_total[5m])) > 10000
+        for: 10m
+        labels:
+          severity: warning
+          standard: "NIST AI RMF"
+        annotations:
+          summary: "Average tokens per request above 10,000"
+          description: "The per-request token budget is 10,000 (MATRIX.md 3.3)."
+
+      # Circuit-breaker trips are not emitted yet: E1 owns that producer. Enable
+      # this rule when E1 lands and forge_otel exports forge.circuit_breaker.trips.
+      # - alert: CircuitBreakerTrips
+      #   expr: increase(forge_circuit_breaker_trips_total[1h]) > 5
+      #   for: 0m

@@ -6,6 +6,7 @@ import pytest
 from fake_upstream import app as upstream_app
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
 
@@ -14,10 +15,12 @@ import forge_otel
 upstream = TestClient(upstream_app)
 
 
-def agent_client(exporter: InMemorySpanExporter) -> TestClient:
+def agent_client(
+    exporter: InMemorySpanExporter, metric_reader: InMemoryMetricReader | None = None
+) -> TestClient:
     """An agent that fronts the mock upstream over an OpenAI-compatible endpoint."""
     app = FastAPI()
-    forge_otel.init_tracing(app, exporter=exporter)
+    forge_otel.init_tracing(app, exporter=exporter, metric_reader=metric_reader)
 
     @app.post("/v1/chat/completions")
     def chat_completions(payload: dict[str, Any]) -> dict[str, Any]:
@@ -139,3 +142,40 @@ def test_endpoint_installs_an_otlp_exporter(monkeypatch: pytest.MonkeyPatch) -> 
     forge_otel.init_tracing(FastAPI())
 
     assert constructed["endpoint"] == "http://localhost:4318/v1/traces"
+
+
+def metric_points(reader: InMemoryMetricReader) -> dict[str, Any]:
+    data = reader.get_metrics_data()
+    assert data is not None
+    points: dict[str, Any] = {}
+    for resource_metrics in data.resource_metrics:
+        for scope_metrics in resource_metrics.scope_metrics:
+            for metric in scope_metrics.metrics:
+                points[metric.name] = metric.data.data_points
+    return points
+
+
+def test_metrics_carry_tokens_cost_latency_and_tenant() -> None:
+    reader = InMemoryMetricReader()
+    request(agent_client(InMemorySpanExporter(), reader))
+
+    points = metric_points(reader)
+    token_points = points["gen_ai.client.token.usage"]
+    assert {p.attributes["gen_ai.token.type"] for p in token_points} == {"input", "output"}
+    assert {p.attributes["tenant.id"] for p in token_points} == {"acme"}
+    assert {p.attributes["gen_ai.request.model"] for p in token_points} == {"gpt-4o-mini"}
+
+    cost_points = points["forge.llm.cost.usd"]
+    assert cost_points[0].value > 0
+    assert cost_points[0].attributes["tenant.id"] == "acme"
+
+    duration_points = points["gen_ai.client.operation.duration"]
+    assert duration_points[0].count == 1
+    assert duration_points[0].attributes["gen_ai.request.model"] == "gpt-4o-mini"
+
+
+def test_llm_span_is_attributed_to_the_tenant() -> None:
+    exporter = InMemorySpanExporter()
+    request(agent_client(exporter))
+
+    assert spans_by_name(exporter)["chat gpt-4o-mini"].attributes["tenant.id"] == "acme"
