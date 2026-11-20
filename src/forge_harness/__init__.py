@@ -57,6 +57,8 @@ class Case:
     roles: tuple[str, ...] | None = None
     # Roles for which a denial is the correct outcome.
     expect_denied: tuple[str, ...] = ()
+    # Override the target's credential for this case (credential forgery).
+    token: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Case:
@@ -164,9 +166,9 @@ class Target:
             base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
         )
 
-    def send(self, prompt: str) -> Reply:
+    def send(self, prompt: str, token: str | None = None) -> Reply:
         started = time.monotonic()
-        headers = self._headers()
+        headers = self._headers(token)
         try:
             body = {
                 "model": self._model(headers),
@@ -201,10 +203,11 @@ class Target:
             body=body,
         )
 
-    def _headers(self) -> dict[str, str]:
-        if self.token is None:
+    def _headers(self, token: str | None = None) -> dict[str, str]:
+        credential = token if token is not None else self.token
+        if credential is None:
             return {}
-        bearer = self.token() if callable(self.token) else self.token
+        bearer = credential() if callable(credential) else credential
         return {"Authorization": f"Bearer {bearer}"}
 
     def _model(self, headers: dict[str, str]) -> str:
@@ -249,7 +252,7 @@ class Runner:
 
     def _run_case(self, case: Case, target: Target, span: Span | None) -> Record:
         input_labels = self._labels(case.prompt, self.input_detectors)
-        reply = target.send(case.prompt)
+        reply = target.send(case.prompt, token=case.token)
         output_labels = self._labels(reply.text, self.output_detectors)
         verdict = self._verdict(case, reply, output_labels)
         conformance = (
@@ -348,6 +351,9 @@ class Runner:
         # A benign case that was answered is a pass, not an unclear result.
         if case.expectation == "answer":
             return "answered"
+        if case.expectation == "denied":
+            # Reaching here means the credential or role was accepted.
+            return "unexpected_access"
         return "unclear"
 
     def _labels(self, text: str, detectors: list[Detector]) -> tuple[str, ...]:

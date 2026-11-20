@@ -332,6 +332,10 @@ Load failures are the caller's problem (`from_url` raises); a broken `$ref` insi
 
 `Run.summary()` counts `by_verdict` and `by_role`, and exposes `injections_succeeded`, `unexpected_access` and `by_conformance`. A 401/403 is a verdict, not an error, so `errors` counts only real failures. `Record.response_excerpt` keeps the first 500 characters so a result can be looked at; the audit log still stores hashes only.
 
+`forge_harness.chaos.credential_cases(valid_token)` builds forged variants of a real token — tampered signature, `alg: none`, truncated, garbage, and claim-level rewrites (expired, wrong audience, injected role). Each is a `Case` with `expectation="denied"` and a per-case `token`, which `Target.send` uses in place of its own credential. A forgery that is accepted becomes `unexpected_access`.
+
+The limit is stated in the module: Forge holds no signing key, so a claim rewrite is also a broken signature. Those cases are tagged `signature-broken-too`; a rejection proves the gateway rejects a tampered token, not that it rejects an expired one.
+
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 
 Nothing here blocks. That is the whole point of Forge: the payload must reach the target.
