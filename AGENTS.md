@@ -245,6 +245,19 @@ Normalisation produces a **screened copy**, never the text that gets forwarded: 
 
 Actions are configurable per category via `policy={...}`; flagged decisions are appended to the review queue and every non-`allow` decision goes to the audit log (A3).
 
+Wiring a real classifier:
+
+```python
+from forge_guard import Guard, ModelDetector
+from forge_guard.openrouter import classifier
+
+guard = Guard(detectors=[ModelDetector(classifier(model="openai/gpt-4o-mini"), block_at=0.8)])
+```
+
+`classifier()` resolves `model`, base URL and key from arguments then `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` / `OPENROUTER_API_KEY`. It asks the model for JSON `{"category", "score"}` and tolerates a fenced code block around it.
+
+**Failure policy: a classifier that cannot answer produces a `classifier_error` finding with action `flag`** — never a silent `allow`, never a `block`. A classifier outage must not pass traffic unexamined, and must not take the API down either. Retries and circuit breaking are E1.
+
 **This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and tool-call authorization is D4; neither is replaced by this package. Treat a block as a signal for logging and review, not as proof the input was safe.
 
 7. Known API gotchas

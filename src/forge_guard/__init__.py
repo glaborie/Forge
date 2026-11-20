@@ -217,6 +217,10 @@ class RegexDetector:
 Classifier = Callable[[str], tuple[str, float]]
 
 
+class ClassifierUnavailable(RuntimeError):
+    """The classifier produced no verdict. `ModelDetector` turns this into a flag."""
+
+
 class ModelDetector:
     """Adapter for a classifier supplied by the deployment.
 
@@ -241,7 +245,12 @@ class ModelDetector:
         self.flag_at = flag_at
 
     def detect(self, normalized: Normalized) -> list[Finding]:
-        category, score = self.classify(normalized.screened)
+        try:
+            category, score = self.classify(normalized.screened)
+        except Exception as exc:  # noqa: BLE001 - a missing verdict must not pass traffic
+            return [
+                Finding("classifier_error", "classifier_error", self.owasp, "flag", str(exc)[:200])
+            ]
         if score < self.flag_at:
             return []
         action: Action = "block" if score >= self.block_at else "flag"
