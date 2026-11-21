@@ -31,6 +31,7 @@ text
 ├── src/forge_guard/                ← D1 input guardrails
 ├── src/forge_harness/              ← H1 inject / record / label
 ├── src/forge_compliance/           ← G1 framework selection and evidence index
+├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
 ├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
@@ -392,6 +393,20 @@ markdown = build_package(
 `UnknownFramework` carries the offending names and the valid list, so a UI can render both without parsing an error string. `make package FRAMEWORKS="Swiss FADP" PACKAGE=out.md` is the shell entry point; `make validate`, `make fetch` and `make test` cover the rest.
 
 It indexes controls; it does not assert coverage, because the artifact proving a control is named in the story. A selection with no controls prints `No control references the selected frameworks.` and exits 0, so an empty result is visible rather than silently empty. A bare object (`{"items": …}`) is rejected with the `.items[]` hint and invalid JSON exits 1.
+
+6.12 forge_resilience (Python package, not a script)
+`CircuitBreaker(failure_threshold=5, reset_timeout=30.0)` counts consecutive failures and opens once the threshold is reached. While open it refuses calls; after `reset_timeout` one trial is allowed, and success closes it while failure reopens it with a fresh timer. `clock` is injectable so the recovery path is tested without sleeping.
+
+```python
+breaker = CircuitBreaker(failure_threshold=3, reset_timeout=30)
+answer = breaker.call(lambda: provider.complete(prompt), fallback=lambda: SAFE_REPLY)
+```
+
+`fallback` covers both cases the story names — another model, or a canned safe response — and is used either when the breaker is open or when the call itself fails. Without it, an open breaker raises `CircuitOpen` rather than returning a silent empty answer, and a failed call re-raises the provider error: a degradation must stay visible.
+
+Retries belong to the caller, because a retry policy that conflicts with the breaker's timer is worse than either alone.
+
+**Not for the harness.** `forge_harness` deliberately does not use this: a dead target is a result, so suppressing requests would erase the finding. The breaker protects a service's own provider calls.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
