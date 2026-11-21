@@ -24,6 +24,17 @@ class Conformance:
     detail: str = ""
 
 
+# Keys that say something about a body's shape. A schema with none of them only
+# restates the JSON type, which every JSON body satisfies.
+_INFORMATIVE = frozenset(
+    {"properties", "required", "items", "anyOf", "oneOf", "allOf", "patternProperties"}
+)
+
+
+def _constrains(schema: Any) -> bool:
+    return isinstance(schema, dict) and bool(_INFORMATIVE & set(schema))
+
+
 class Spec:
     """A loaded OpenAPI document, resolved just enough to validate responses."""
 
@@ -66,8 +77,18 @@ class Spec:
                 )
             return Conformance("unspecified", f"{status} declares no schema for {path}")
 
+        resolved = self._resolve(schema)
+        if not _constrains(resolved):
+            # `{"type": "object"}` validates anything. Calling that conformant
+            # would turn an undescribed body into a pass.
+            if self.strict:
+                return Conformance(
+                    "schema_violation", f"{status} schema for {path} constrains nothing (strict)"
+                )
+            return Conformance("unspecified", f"{status} schema for {path} constrains nothing")
+
         try:
-            jsonschema.validate(instance=body, schema=self._resolve(schema))
+            jsonschema.validate(instance=body, schema=resolved)
         except jsonschema.ValidationError as exc:
             pointer = "/".join(str(part) for part in exc.absolute_path) or "<body>"
             return Conformance("schema_violation", f"{pointer}: {exc.message}")

@@ -348,9 +348,19 @@ run = Runner(spec=spec).run_matrix(cases, identities)
 run.summary()["by_conformance"]  # {'unspecified': 24, 'undeclared_status': 8}
 ```
 
-Verdicts: `conformant`, `undeclared_status` (the endpoint or status is not in the document), `schema_violation` (jsonschema failed, with the first offending pointer), `unspecified` (declared, but the status has no schema). `unspecified` is deliberately distinct from `conformant` — most of the target's surface is undescribed, and `Spec(strict=True)` promotes that to a violation when a caller wants to insist.
+Verdicts: `conformant`, `undeclared_status` (the endpoint or status is not in the document), `schema_violation` (jsonschema failed, with the first offending pointer), `unspecified` (declared, but the status has no schema). A schema that only restates the JSON type — `{"type": "object"}` with no `properties`, `required` or composition — is `unspecified` too: it validates every body, so calling it conformant would turn an undescribed response into a clean one. `unspecified` is deliberately distinct from `conformant` — most of the target's surface is undescribed, and `Spec(strict=True)` promotes that to a violation when a caller wants to insist.
 
 Load failures are the caller's problem (`from_url` raises); a broken `$ref` inside the document is reported as `unspecified` rather than crashing the run.
+
+Live runs are a command, not a pasted snippet:
+
+```
+uv run python -m forge_harness --target http://localhost:8000 --roles all \
+    --spec http://localhost:8000/openapi.json --report run.json
+make live ROLES=all ARGS="--spec http://localhost:8000/openapi.json"
+```
+
+`--family corpus|credentials|history` picks the input set, `--path` the endpoint (`/v1/chat` implies `send_model=False`), `--token` a bearer credential instead of `.env` grants, and `--audit`, `--tracing`, `--report` turn on the evidence side. `--fail-on-findings` exits 1. `make live` sources `.env` first. A 44-case matrix against bastion takes about 20 seconds, so the constraint on a run is the provider bill, not the clock.
 
 `Run.summary()` counts `by_verdict` and `by_role`, and exposes `injections_succeeded`, `unexpected_access` and `by_conformance`. A 401/403 is a verdict, not an error, so `errors` counts only real failures. `Record.response_excerpt` keeps the first 500 characters so a result can be looked at; the audit log still stores hashes only.
 
