@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -43,13 +44,16 @@ ITEMS = [
 ]
 
 
-def run(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+def run(
+    *args: str, stdin: str | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [str(SCRIPT), *args],
         input=stdin if stdin is not None else json.dumps(ITEMS),
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
 
@@ -76,11 +80,11 @@ def test_pull_requests_are_not_controls() -> None:
     assert "chore: a pull request" not in result.stdout
 
 
-def test_a_standard_with_no_controls_says_so() -> None:
-    result = run("FINMA Guidance 08/2024")
+def test_a_selected_framework_with_no_controls_says_so() -> None:
+    result = run("CoE AI Convention")
 
     assert result.returncode == 0
-    assert "No control references FINMA Guidance 08/2024." in result.stdout
+    assert "No control references the selected frameworks." in result.stdout
 
 
 def test_without_a_filter_every_standard_appears() -> None:
@@ -105,3 +109,36 @@ def test_invalid_json_is_rejected() -> None:
 
     assert result.returncode == 1
     assert "not the JSON array" in result.stderr
+
+
+def test_the_operator_can_select_several_frameworks() -> None:
+    result = run("EU AI Act,Swiss FADP")
+
+    assert result.returncode == 0
+    assert "Evidence package: EU AI Act, Swiss FADP" in result.stdout
+    assert "D2. Deploy output guardrails" in result.stdout
+    assert "H4. Reconcile the audit ledger" in result.stdout
+
+
+def test_the_selection_is_recorded_as_the_operators_decision() -> None:
+    result = run("Swiss FADP")
+
+    assert "Frameworks selected by the operator" in result.stdout
+    assert "does not decide applicability" in result.stdout
+
+
+def test_the_selection_can_come_from_the_environment() -> None:
+    env = {**os.environ, "FORGE_FRAMEWORKS": "EU AI Act"}
+
+    result = run(env=env)
+
+    assert "Evidence package: EU AI Act" in result.stdout
+    assert "D2. Deploy output guardrails" not in result.stdout
+
+
+def test_a_framework_outside_the_vocabulary_is_rejected() -> None:
+    result = run("GDPR")
+
+    assert result.returncode == 1
+    assert "not a Standard identifier: GDPR" in result.stderr
+    assert "Swiss FADP" in result.stderr

@@ -369,11 +369,13 @@ Nothing here blocks. That is the whole point of Forge: the payload must reach th
 
 6.11 evidence-package.sh
 ```
-./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh ["Standard"] > package.md
+./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh ["Framework[,Framework…]"] > package.md
 ```
-Reads the project snapshot on stdin, keeps issues only (pull requests are not controls), and writes one markdown row per `(standard, control)` pair, sorted by standard and then number. With an argument it filters to that exact `Standard` value; without one it lists every standard.
+Reads the project snapshot on stdin, keeps issues only (pull requests are not controls), and writes one markdown row per `(standard, control)` pair, sorted by standard and then number. The first argument, or `FORGE_FRAMEWORKS` when it is absent, is a `,`- or `;`-separated list of the frameworks an operator selected; with neither, every standard is listed.
 
-It indexes controls; it does not assert coverage, because the artifact proving a control is named in the story. A standard with no controls prints `No control references …` and exits 0, so an empty result is visible rather than silently empty. A bare object (`{"items": …}`) is rejected with the `.items[]` hint and invalid JSON exits 1.
+Applicability is the operator's decision. The script never infers a framework from the target, and it rejects a name outside the MATRIX §8 vocabulary with the valid list, exit 1 — the vocabulary is parsed from §8 rather than copied, so it cannot drift from the document. The selection is printed in the package header so the claim is attributable.
+
+It indexes controls; it does not assert coverage, because the artifact proving a control is named in the story. A selection with no controls prints `No control references the selected frameworks.` and exits 0, so an empty result is visible rather than silently empty. A bare object (`{"items": …}`) is rejected with the `.items[]` hint and invalid JSON exits 1.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
