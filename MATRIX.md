@@ -309,12 +309,14 @@ Query it with the repository script rather than keeping a table here:
   .[] | select(.standard | test("OWASP")) | "\(.number) \(.title)"'
 ```
 
-An evidence package for one standard, or for all of them, is exported as markdown:
+An evidence package for the frameworks an operator selected is exported as markdown:
 
 ```bash
-./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh "Swiss FADP" > swiss-fadp.md
-./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh > all-standards.md
+./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh "Swiss FADP,FINMA" > ch-package.md
+FORGE_FRAMEWORKS="Swiss FADP" ./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh
 ```
+
+**Applicability is the operator's decision, not the tool's.** Forge does not detect a sector or a jurisdiction and does not decide that FINMA applies because the target looks like a bank; the same is true of Annex III uses under the EU AI Act. The operator selects the frameworks, the selection is checked against the §8 vocabulary, and the generated package records it in its header so an auditor can see what was claimed and by whom. A package is not evidence that the selection was right — only that it was made.
 
 The package indexes the controls that claim a standard. It does not assert that their evidence is complete — the artifact that proves each control is named in the story.
 
