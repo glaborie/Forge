@@ -99,7 +99,7 @@ Epics are always `Tracking`. Stories move `Backlog` → `Ready` → `In progress
 5.3 The Standard field
 One or more framework identifiers, semicolon-separated, using the exact strings in MATRIX.md §8:
 
-`NIST AI RMF`, `NIST AI 800-3`, `ISO/IEC 42001`, `ISO/IEC 42119-8`, `OWASP LLM Top 10`, `Google SAIF`, `CSA AICM`, `ENISA FAICP`, `EU AI Act`
+`NIST AI RMF`, `NIST AI 800-3`, `ISO/IEC 42001`, `ISO/IEC 42119-8`, `OWASP LLM Top 10`, `Google SAIF`, `CSA AICM`, `ENISA FAICP`, `EU AI Act`, `Swiss FADP`, `FINMA Guidance 08/2024`, `CoE AI Convention`, `ISO/IEC 27001`
 
 `N/A` is the only other permitted value, for framework-internal stories that make no external compliance claim (currently `G3`). Control-level detail (`LLM01`, `Cl. 8`, `Art. 12`) belongs in MATRIX.md, never in this field — the field is for aggregation, not citation.
 
