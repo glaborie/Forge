@@ -384,6 +384,7 @@ gh project item-delete rejects --project-id	It takes --owner, not --project-id.	
 http.status_code appears instead of http.response.status_code	The FastAPI instrumentor defaults to pre-1.20 semantic conventions.	forge_otel sets http.response.status_code in its own send wrapper.
 Duplicate exception span events	start_as_current_span records exceptions and sets status by default.	Pass record_exception=False, set_status_on_exception=False when recording manually.
 Middleware sees no active span	Starlette wraps in reverse add order, so the last-added middleware is outermost.	Add attribute middleware before FastAPIInstrumentor.instrument_app.
+GitGuardian fails on a test fixture	a literal card number, JWT or `sk-…` string in a test file, even an invalid one	Build fixture secrets at runtime (`" ".join(["4111"] + ["1111"] * 3)`, base64 of a dict); the commit is what gets scanned
 TestClient re-raises the endpoint's exception	raise_server_exceptions=True is the default.	TestClient(app, raise_server_exceptions=False) when asserting on a 5xx.
 
 8. Canonical workflows for agents
