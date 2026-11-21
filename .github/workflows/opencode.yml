@@ -47,7 +47,22 @@ if: |
         run: |
           export PATH="$HOME/.opencode/bin:$PATH"
 
-          RESPONSE=$(opencode run -w --archived --model opencode-go/kimi-k3 \
+          ALLOWED_MODELS="opencode-go/deepseek-v4.1-flash opencode-go/beam-free"
+          REQUESTED_MODEL=$(echo "$COMMENT_BODY" | grep -oE 'model=[a-zA-Z0-9._-]+' | cut -d= -f2)
+          
+          if [ -n "$REQUESTED_MODEL" ]; then
+            CANDIDATE="opencode-go/${REQUESTED_MODEL}"
+            if echo " $ALLOWED_MODELS " | grep -q " $CANDIDATE "; then
+              MODEL="$CANDIDATE"
+            else
+              echo "Model '$CANDIDATE' is not allowed. Allowed: $ALLOWED_MODELS" >&2
+              exit 1
+            fi
+          else
+            MODEL="opencode-go/deepseek-v4.1-flash"
+          fi
+          
+          RESPONSE=$(opencode run -w --archived --model "$MODEL" \
             "You were triggered by a comment on ${REPO}#${ISSUE_NUMBER}:
             ${COMMENT_BODY}
 
