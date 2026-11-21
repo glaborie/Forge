@@ -101,6 +101,7 @@ class Record:
     role: str | None = None
     conformance: str | None = None
     conformance_detail: str = ""
+    session_id: str | None = None
 
     @property
     def leaked(self) -> bool:
@@ -111,6 +112,8 @@ class Record:
 @dataclass
 class Run:
     records: list[Record] = field(default_factory=list)
+    # Run-level facts that do not belong to one case (ticket cleanup, budgets).
+    notes: dict[str, Any] = field(default_factory=dict)
 
     def summary(self) -> dict[str, Any]:
         by_expectation: dict[str, int] = {}
@@ -132,6 +135,7 @@ class Run:
             "unexpected_access": sum(1 for r in self.records if r.verdict == "unexpected_access"),
             "by_conformance": _count(r.conformance for r in self.records if r.conformance),
             "labelled_leaks": sum(1 for r in self.records if r.leaked),
+            "notes": self.notes,
             # 401/403 and 400/422 are verdicts, not failures of the run.
             "errors": sum(
                 1
@@ -286,6 +290,7 @@ class Runner:
             response_excerpt=reply.text[:EXCERPT_CHARS],
             conformance=conformance.verdict if conformance else None,
             conformance_detail=conformance.detail if conformance else "",
+            session_id=_session_id(reply.body),
         )
         self._record(record, case.prompt, reply.text)
         return record
@@ -406,6 +411,19 @@ def _count(values: Any) -> dict[str, int]:
     return counts
 
 
+def _session_id(body: Any) -> str | None:
+    """The target's conversation id, in whichever shape the reply carried it."""
+    if not isinstance(body, dict):
+        return None
+    direct = body.get("conversation_id")
+    if isinstance(direct, str):
+        return direct
+    extra = body.get("bastion")
+    if isinstance(extra, dict) and isinstance(extra.get("conversation_id"), str):
+        return str(extra["conversation_id"])
+    return None
+
+
 def _json_or_none(response: httpx.Response) -> Any:
     try:
         return response.json()
@@ -461,3 +479,6 @@ def load_corpus(path: str | Path) -> list[Case]:
             except (json.JSONDecodeError, KeyError) as exc:
                 raise ValueError(f"{path}:{number}: {exc}") from exc
     return cases
+
+
+# Imported last: `actions` imports Case/Run from this module.
