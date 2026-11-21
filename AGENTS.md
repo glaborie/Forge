@@ -281,7 +281,7 @@ if not grants.authorize("analyst", "execute_file_write", audit=log).allowed:
 
 Note the difference from `Guard`: the input guard observes by default because the adversarial payload must reach the target; tool authorization denies, because the whole point is that the action does not happen. That is OWASP LLM06, excessive agency.
 
-**This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and tool-call authorization is D4; neither is replaced by this package. Treat a block as a signal for logging and review, not as proof the input was safe.
+**This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and is not replaced by this package; tool-call authorization is `ToolGrants` above. Treat a block as a signal for logging and review, not as proof the input was safe.
 
 6.10 forge_harness (Python package, not a script)
 Sends each case to a target, labels the input with `forge_guard`, labels the response with the output rules, and writes both halves to the audit log.
