@@ -140,7 +140,7 @@ This is the mapping AGENTS.md refers to. Each dimension is anchored to one or mo
 | **Operational** | ISO/IEC 42001:2023 · NIST AI RMF | AIMS operational control (Cl. 8); *Manage* function; logging, monitoring, human oversight |
 | **Temporal** | NIST AI RMF lifecycle · ISO/IEC 42001 | *Measure* + *Manage* continuous loop; continual improvement (Cl. 10); nonconformity & corrective action |
 | **Cross-cutting** | CSA AI Controls Matrix (AICM) · ENISA FAICP | 18 domains / 243 control objectives; 3-layer AI cybersecurity framework |
-| **Swiss regulatory** | Swiss FADP · FINMA Guidance 08/2024 · CoE AI Convention · ISO/IEC 27001 | FADP Arts. 7, 19, 21, 22; FINMA governance, inventory, data quality, testing, documentation, explainability, independent review; the convention as *upcoming*; ISMS certification as the buyer-facing baseline (§6.10) |
+| **Swiss regulatory** | Swiss FADP · FINMA · CoE AI Convention · ISO/IEC 27001 | FADP Arts. 7, 19, 21, 22; FINMA governance, inventory, data quality, testing, documentation, explainability, independent review; the convention as *upcoming*; ISMS certification as the buyer-facing baseline (§6.10) |
 | **Regulatory** | EU AI Act (Reg. 2024/1689) | Ch. III: risk management, data governance, technical documentation, record-keeping, transparency, human oversight, accuracy, robustness, cybersecurity |
 
 ### 6.2 Detail: NIST AI RMF (AI 100-1)
@@ -220,40 +220,48 @@ Obligations for high-risk systems take effect in August 2026 (December 2027 for 
 
 ### 6.10 Detail: Swiss obligations
 
-Switzerland has **no AI-specific statute in force** (§8.1). What applies is the FADP, sector guidance for supervised institutions, the certification path a Swiss buyer asks for, and one instrument that is signed but not yet binding. This section says which is which, because the failure mode a vendor deck commits is citing a 2027 draft as current law.
+Switzerland has **no AI-specific statute in force** (§8.1). Obligations are resolved from the
+`ai-compliance-pentest` rule packs rather than recalled: pack `v1.0.0`, commit `816b1e4`, FADP text
+as of 2026-11-19 (Fedlex SR 235.1, consolidated English translation; the German or French text governs).
+Do not copy article numbers out of this table — read them from the pack, because numbering shifts
+between revisions and summaries lag.
 
-**What binds today**
+Three fields decide what a finding may say:
 
-| Identifier | Status | What it means for a control |
-| :--- | :--- | :--- |
-| `Swiss FADP` | In force since 1 September 2023 | Personal data processed by the system; the FDPIC supervises; high-risk processing needs a DPIA |
-| `FINMA Guidance 08/2024` | Guidance, 18 December 2024, supervised institutions only | Interprets existing supervisory law; it adds no ordinance |
-| `ISO/IEC 27001` | Voluntary certification | A contractual and audit expectation, not a statute |
-| `ISO/IEC 42001` | Voluntary certification | An AIMS certificate rests on the operational evidence the controls produce |
-| `CoE AI Convention` | Signed 27 March 2025, **not ratified** | No obligations for companies until the implementing act; consultation expected spring 2027 |
-| `EU AI Act` | In force; transparency provisions since August 2026 | Applies to systems placed on the EU market, or whose output is used in the EU |
+- **`bindingness`** — only `statute` and `binding_circular` may be reported as a **breach**. A `supervisory_expectation` supports "deficient against" and nothing stronger.
+- **`verification.automatable`** — `full` means a scanner decides; `partial` means a scanner contributes and document review finishes the job; `none` means organisational evidence only, and such a rule must never appear in a compliance percentage or be described as tested.
+- **`effective_date`** — per rule, not per pack.
 
-**FADP**
+**FADP** — 14 rules, `CH` pack
 
-| Provision | AgentGuard control |
-| :--- | :--- |
-| Art. 7 data protection by design and by default | `D1` input guardrails; `D2` output guardrails and PII redaction |
-| Art. 19 duty to inform | `A3` audit log; guardrail decisions carry a reason an information notice can be built from |
-| Art. 21 automated individual decisions | `H3` approval gate; `E1` human oversight and fallback; `F2` canary rollback |
-| Art. 22 data protection impact assessment | `G1` this mapping; `F1` drift, because a material change invalidates the assessment it rests on |
-| *No Swiss requirement yet* | Non-discrimination testing and AI-specific transparency. The federal act is expected to reach consultation in spring 2027 and no control claims it today. |
+| Provision | Rule | Testable | AgentGuard control |
+| :--- | :--- | :--- | :--- |
+| Art. 7 data protection by design and by default | `CH-DES-001` | partial | `D1` input guardrails; `D2` output guardrails and PII redaction |
+| Art. 8 data security appropriate to the risk | `CH-SEC-001` | **full** | `D1`–`D5`; `E2` rate limiting; `I1`–`I8` abuse testing |
+| Art. 19 duty to inform | `CH-INF-001` | partial | `A3` audit log; guardrail reasons an information notice can be built from |
+| Art. 21 automated individual decisions | `CH-AID-001` | conditional | `H3` approval gate; `E1` human oversight; `F2` canary rollback |
+| Art. 22 data protection impact assessment | `CH-DPI-001` | none | `G1` this mapping; `F1` drift, because a material change invalidates the assessment |
+| *No Swiss requirement yet* | — | — | Non-discrimination testing and AI-specific transparency. The federal act is expected to reach consultation in spring 2027; no control claims it. |
 
-**FINMA Guidance 08/2024** (supervised institutions only)
+**FINMA** — 17 rules, `CH-FINMA` pack, supervised institutions only
 
-| Section | AgentGuard control |
-| :--- | :--- |
-| 2.1 Governance | `G1`; `G3` dashboard |
-| 2.2 Inventory and risk classification | every story carries a dimension, phase and priority, so the set is enumerable; `G3` surfaces it |
-| 2.3 Data quality | `B1` golden datasets |
-| 2.4 Tests and ongoing monitoring | `C1`–`C3`; `D3` adversarial tests in CI; `F1` drift |
-| 2.5 Documentation | `G2` audit-ready report; this document |
-| 2.6 Explainability | `H2` canary verdicts give a failure a cause; `A3` records the decision |
-| 2.7 Independent review | Epic I red teaming; `D3` |
+FINMA is an overlay, not a separate jurisdiction: it applies where the target is a bank, securities
+firm, insurer or fund manager. The pack separates what can be breached from what is only expected.
+
+| Instrument | Rule | Bindingness | Testable | AgentGuard control |
+| :--- | :--- | :--- | :--- | :--- |
+| Guidance 08/2024 §2.1 governance | `CH-FIN-001` | supervisory_expectation | partial | `G1`; `G3` dashboard |
+| §2.2 inventory and risk classification | `CH-FIN-002` | supervisory_expectation | partial | board fields; `G3` |
+| §2.3 data quality | `CH-FIN-003` | supervisory_expectation | partial | `B1` golden datasets |
+| §2.4 tests and ongoing monitoring | `CH-FIN-004` | supervisory_expectation | **full** | `C1`–`C3`; `D3`; `F1` |
+| §2.5 documentation | `CH-FIN-005` | supervisory_expectation | none | `G2` audit-ready report |
+| §2.6 explainability | `CH-FIN-006` | supervisory_expectation | partial | `H2` canary verdicts; `A3` |
+| §2.7 independent review | `CH-FIN-007` | supervisory_expectation | partial | Epic I; `D3` |
+| Circular 2023/1 ICT and cyber risk (margins 47–96) | `CH-FIN-008`–`011` | **binding_circular** | full/partial/conditional | `E1`–`E3`; `D3`; `F1` |
+| Circular 2023/1 operational resilience (margins 101–111) | `CH-FIN-012` | **binding_circular** | none | `G2`; `F2` |
+| Circular 2018/3 outsourcing (margins 14–35) | `CH-FIN-013`–`015` | **binding_circular** | partial/none | `G2`; `A5` |
+| Agentic AI: human ownership (2026 statement) | `CH-FIN-016` | supervisory_expectation | partial | `H3`; `D4` |
+| Digital fraud (2026 guidance) | `CH-FIN-017` | supervisory_expectation | partial | `D3`; `I2`–`I5` |
 
 **Council of Europe AI Convention** — upcoming, mapped so the work is ready when the act is
 
@@ -264,7 +272,11 @@ Switzerland has **no AI-specific statute in force** (§8.1). What applies is the
 | Risk assessment | `B1`, `F1`, `G1` |
 | Data protection | the FADP rows above, which are current rather than upcoming |
 
-An article citation in this section is a pointer, not legal advice: confirm it against the act text before putting it in front of a customer.
+**What a scanner can actually prove.** Forge tests behaviour. Of the Swiss rules, only the ones marked
+`full` — `CH-SEC-001`, `CH-FIN-004`, `CH-FIN-009` — can be decided entirely by the harness. `partial`
+and `conditional` rules need a document review alongside it, and `none` rules must be reported as
+document evidence, never as tested. That boundary is the same one the harness applies to its own
+verdicts: a case that never reached the model is not a pass.
 
 ---
 
@@ -342,7 +354,7 @@ This is the closed loop the matrix describes: execution → evidence → score �
 | `ENISA FAICP` | ENISA Framework for AI Cybersecurity Practices |
 | `EU AI Act` | Regulation (EU) 2024/1689 |
 | `Swiss FADP` | Federal Act on Data Protection (revised, in force 1 September 2023) |
-| `FINMA Guidance 08/2024` | Governance and risk management when using artificial intelligence (18 December 2024) |
+| `FINMA` | Supervisory expectations for FINMA-supervised institutions: Guidance 08/2024 and Circulars 2023/1 and 2018/3 |
 | `CoE AI Convention` | Council of Europe Framework Convention on Artificial Intelligence (signed by Switzerland 27 March 2025, not yet ratified) |
 | `ISO/IEC 27001` | Information security, cybersecurity and privacy protection — requirements for an ISMS |
 
@@ -352,7 +364,7 @@ Switzerland has **no AI-specific statute in force**. AI-supported processing of 
 
 On 12 February 2025 the Federal Council decided to implement the Council of Europe's AI Convention through targeted, mostly sector-specific amendments rather than an EU-style act. The consultation draft is scheduled for spring 2027, with the Federal Council taking note of the non-binding measures in autumn 2026 — so nothing beyond existing law binds today, and a system cannot yet be "compliant with the Swiss AI Act".
 
-FINMA-supervised institutions answer additionally to **FINMA Guidance 08/2024**, which sets expectations for governance, AI inventory and risk classification, data quality, testing and ongoing monitoring, documentation, explainability and independent review. It is guidance, not ordinance: it interprets existing supervisory law.
+FINMA-supervised institutions answer additionally to **`FINMA`**, which aggregates two different things: Guidance 08/2024 (governance, AI inventory and risk classification, data quality, testing and monitoring, documentation, explainability, independent review) and the binding circulars — Circular 2023/1 on ICT, cyber and operational risk, and Circular 2018/3 on outsourcing. Guidance is a supervisory expectation that supports "deficient against"; a circular breach can be reported as a breach. §6.10 keeps the two apart per rule.
 
 Swiss providers that place systems on the EU market, or whose output is used in the EU, remain subject to the **EU AI Act**; its transparency provisions have applied since August 2026. **ISO/IEC 27001** is the certification baseline most Swiss buyers require, with **ISO/IEC 42001** the AI management system layered on top.
 

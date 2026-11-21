@@ -23,7 +23,7 @@ items = [i for i in items if i.get("type") == "Issue"]
 STANDARDS = {
     "NIST AI RMF", "NIST AI 800-3", "ISO/IEC 42001", "ISO/IEC 42119-8",
     "OWASP LLM Top 10", "Google SAIF", "CSA AICM", "ENISA FAICP", "EU AI Act",
-    "Swiss FADP", "FINMA Guidance 08/2024", "CoE AI Convention", "ISO/IEC 27001",
+    "Swiss FADP", "FINMA", "CoE AI Convention", "ISO/IEC 27001",
     "N/A",
 }
 DIMENSIONS = {"Functional", "Security", "Operational", "Temporal", "Cross-cutting"}
