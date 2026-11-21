@@ -314,6 +314,7 @@ An evidence package for the frameworks an operator selected is exported as markd
 ```bash
 ./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh "Swiss FADP,FINMA" > ch-package.md
 FORGE_FRAMEWORKS="Swiss FADP" ./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh
+make package FRAMEWORKS="Swiss FADP,FINMA" PACKAGE=ch-package.md
 ```
 
 **Applicability is the operator's decision, not the tool's.** Forge does not detect a sector or a jurisdiction and does not decide that FINMA applies because the target looks like a bank; the same is true of Annex III uses under the EU AI Act. The operator selects the frameworks, the selection is checked against the §8 vocabulary, and the generated package records it in its header so an auditor can see what was claimed and by whom. A package is not evidence that the selection was right — only that it was made.
