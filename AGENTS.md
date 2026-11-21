@@ -25,10 +25,12 @@ text
 ├── AGENTS.md                       ← you are here
 ├── MATRIX.md                       ← framework doc
 ├── pyproject.toml                  ← Python package + tool config
+├── Makefile                        ← operator entry points: validate, fetch, package, test
 ├── src/forge_otel/                 ← A1 instrumentation package
 ├── src/forge_audit/                ← A3 audit log
 ├── src/forge_guard/                ← D1 input guardrails
 ├── src/forge_harness/              ← H1 inject / record / label
+├── src/forge_compliance/           ← G1 framework selection and evidence index
 ├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
@@ -374,6 +376,20 @@ Nothing here blocks. That is the whole point of Forge: the payload must reach th
 Reads the project snapshot on stdin, keeps issues only (pull requests are not controls), and writes one markdown row per `(standard, control)` pair, sorted by standard and then number. The first argument, or `FORGE_FRAMEWORKS` when it is absent, is a `,`- or `;`-separated list of the frameworks an operator selected; with neither, every standard is listed.
 
 Applicability is the operator's decision. The script never infers a framework from the target, and it rejects a name outside the MATRIX §8 vocabulary with the valid list, exit 1 — the vocabulary is parsed from §8 rather than copied, so it cannot drift from the document. The selection is printed in the package header so the claim is attributable.
+
+The work lives in `forge_compliance`, and the script is a wrapper over it, so a dashboard calls the same function instead of reimplementing the report:
+
+```python
+from forge_compliance import build_package, split_selection, vocabulary
+
+markdown = build_package(
+    items,  # the fetch-items.sh list
+    frameworks=split_selection("Swiss FADP,FINMA"),
+    vocabulary=vocabulary("MATRIX.md"),  # omit to skip validation
+)
+```
+
+`UnknownFramework` carries the offending names and the valid list, so a UI can render both without parsing an error string. `make package FRAMEWORKS="Swiss FADP" PACKAGE=out.md` is the shell entry point; `make validate`, `make fetch` and `make test` cover the rest.
 
 It indexes controls; it does not assert coverage, because the artifact proving a control is named in the story. A selection with no controls prints `No control references the selected frameworks.` and exits 0, so an empty result is visible rather than silently empty. A bare object (`{"items": …}`) is rejected with the `.items[]` hint and invalid JSON exits 1.
 
