@@ -269,6 +269,18 @@ guard = Guard(detectors=[ModelDetector(classifier(model="openai/gpt-4o-mini"), b
 
 **Failure policy: a classifier that cannot answer produces a `classifier_error` finding with action `flag`** — never a silent `allow`, never a `block`. A classifier outage must not pass traffic unexamined, and must not take the API down either. Retries and circuit breaking are E1.
 
+`ToolGrants` is the one enforcement point in this package: a denied tool call must not execute. Policies are per agent, a deny entry beats an allow entry, and an agent with no policy gets nothing — a missing entry is a configuration mistake, not a licence. `authorize()` returns an `Authorization` carrying `LLM06` and, given an `AuditLog`, records every denial as `guardrail.tool.v1` / `block` with its reason; the tool name and arguments are part of the hashed input and never stored.
+
+```python
+from forge_guard import ToolGrants, ToolPolicy
+
+grants = ToolGrants({"analyst": ToolPolicy(allow=frozenset({"read_file"}))})
+if not grants.authorize("analyst", "execute_file_write", audit=log).allowed:
+    raise PermissionError  # do not execute
+```
+
+Note the difference from `Guard`: the input guard observes by default because the adversarial payload must reach the target; tool authorization denies, because the whole point is that the action does not happen. That is OWASP LLM06, excessive agency.
+
 **This is not a security boundary.** Per the cheat sheet, an LLM does not separate instructions from data and a deny list can be rephrased around. Known gaps: paraphrases, other languages, typoglycemia (`ignroe`), and Best-of-N retries. Rate limiting is E2 and tool-call authorization is D4; neither is replaced by this package. Treat a block as a signal for logging and review, not as proof the input was safe.
 
 6.10 forge_harness (Python package, not a script)
