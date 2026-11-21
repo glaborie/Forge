@@ -17,12 +17,13 @@ items = json.loads(sys.argv[1])
 # Pull requests are auto-added to the project too; they are not stories and carry
 # no Dimension/Phase/Priority. Only issues are validated.
 items = [i for i in items if i.get("type") == "Issue"]
-# The nine identifiers from MATRIX.md section 8. Update both together.
+# The thirteen identifiers from MATRIX.md section 8. Update both together.
 # "N/A" is the documented sentinel for framework-internal stories with no
 # external standard (G3 carries a score, not a compliance claim).
 STANDARDS = {
     "NIST AI RMF", "NIST AI 800-3", "ISO/IEC 42001", "ISO/IEC 42119-8",
     "OWASP LLM Top 10", "Google SAIF", "CSA AICM", "ENISA FAICP", "EU AI Act",
+    "Swiss FADP", "FINMA Guidance 08/2024", "CoE AI Convention", "ISO/IEC 27001",
     "N/A",
 }
 DIMENSIONS = {"Functional", "Security", "Operational", "Temporal", "Cross-cutting"}

@@ -281,6 +281,20 @@ This is the closed loop the matrix describes: execution → evidence → score �
 | `CSA AICM` | Cloud Security Alliance AI Controls Matrix |
 | `ENISA FAICP` | ENISA Framework for AI Cybersecurity Practices |
 | `EU AI Act` | Regulation (EU) 2024/1689 |
+| `Swiss FADP` | Federal Act on Data Protection (revised, in force 1 September 2023) |
+| `FINMA Guidance 08/2024` | Governance and risk management when using artificial intelligence (18 December 2024) |
+| `CoE AI Convention` | Council of Europe Framework Convention on Artificial Intelligence (signed by Switzerland 27 March 2025, not yet ratified) |
+| `ISO/IEC 27001` | Information security, cybersecurity and privacy protection — requirements for an ISMS |
+
+### 8.1 Swiss market
+
+Switzerland has **no AI-specific statute in force**. AI-supported processing of personal data is governed by the revised FADP (in force 1 September 2023); Articles 21 (automated individual decisions) and 22 (data protection impact assessment) are the provisions a production AI system usually touches, and the FDPIC supervises compliance.
+
+On 12 February 2025 the Federal Council decided to implement the Council of Europe's AI Convention through targeted, mostly sector-specific amendments rather than an EU-style act. The consultation draft is scheduled for spring 2027, with the Federal Council taking note of the non-binding measures in autumn 2026 — so nothing beyond existing law binds today, and a system cannot yet be "compliant with the Swiss AI Act".
+
+FINMA-supervised institutions answer additionally to **FINMA Guidance 08/2024**, which sets expectations for governance, AI inventory and risk classification, data quality, testing and ongoing monitoring, documentation, explainability and independent review. It is guidance, not ordinance: it interprets existing supervisory law.
+
+Swiss providers that place systems on the EU market, or whose output is used in the EU, remain subject to the **EU AI Act**; its transparency provisions have applied since August 2026. **ISO/IEC 27001** is the certification baseline most Swiss buyers require, with **ISO/IEC 42001** the AI management system layered on top.
 
 These identifiers are the values the `Standard` field may contain, verbatim, `; `-separated when an item spans several standards. `N/A` marks framework-internal stories. `scripts/validate-project.sh` enforces the list: this table and its `STANDARDS` set change together, in one commit.
 
