@@ -1,0 +1,48 @@
+name: OpenCode Assistant
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  opencode:
+    if: |
+      contains(github.event.comment.body, '/opencode') ||
+      contains(github.event.comment.body, '/oc')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install OpenCode v2.3.2
+        run: curl -fsSL https://opencode.ai/v2/install | bash -s -- --version 2.3.2
+
+      - name: Run OpenCode on comment
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+
+          RESPONSE=$(opencode run -w --archived --model opencode-go/kimi-k3 \
+            "You were triggered by a comment on ${REPO}#${ISSUE_NUMBER}:
+            ${COMMENT_BODY}
+
+            Address the request using the repository context. If code changes are requested, create a new branch, commit the changes, and open a pull request using the 'gh' CLI. Otherwise, provide a direct technical answer.")
+
+          gh issue comment "$ISSUE_NUMBER" --body "$RESPONSE"
