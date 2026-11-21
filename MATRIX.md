@@ -140,6 +140,7 @@ This is the mapping AGENTS.md refers to. Each dimension is anchored to one or mo
 | **Operational** | ISO/IEC 42001:2023 · NIST AI RMF | AIMS operational control (Cl. 8); *Manage* function; logging, monitoring, human oversight |
 | **Temporal** | NIST AI RMF lifecycle · ISO/IEC 42001 | *Measure* + *Manage* continuous loop; continual improvement (Cl. 10); nonconformity & corrective action |
 | **Cross-cutting** | CSA AI Controls Matrix (AICM) · ENISA FAICP | 18 domains / 243 control objectives; 3-layer AI cybersecurity framework |
+| **Swiss regulatory** | Swiss FADP · FINMA Guidance 08/2024 · CoE AI Convention · ISO/IEC 27001 | FADP Arts. 7, 19, 21, 22; FINMA governance, inventory, data quality, testing, documentation, explainability, independent review; the convention as *upcoming*; ISMS certification as the buyer-facing baseline (§6.10) |
 | **Regulatory** | EU AI Act (Reg. 2024/1689) | Ch. III: risk management, data governance, technical documentation, record-keeping, transparency, human oversight, accuracy, robustness, cybersecurity |
 
 ### 6.2 Detail: NIST AI RMF (AI 100-1)
@@ -217,6 +218,56 @@ Obligations for high-risk systems take effect in August 2026 (December 2027 for 
 
 ---
 
+### 6.10 Detail: Swiss obligations
+
+Switzerland has **no AI-specific statute in force** (§8.1). What applies is the FADP, sector guidance for supervised institutions, the certification path a Swiss buyer asks for, and one instrument that is signed but not yet binding. This section says which is which, because the failure mode a vendor deck commits is citing a 2027 draft as current law.
+
+**What binds today**
+
+| Identifier | Status | What it means for a control |
+| :--- | :--- | :--- |
+| `Swiss FADP` | In force since 1 September 2023 | Personal data processed by the system; the FDPIC supervises; high-risk processing needs a DPIA |
+| `FINMA Guidance 08/2024` | Guidance, 18 December 2024, supervised institutions only | Interprets existing supervisory law; it adds no ordinance |
+| `ISO/IEC 27001` | Voluntary certification | A contractual and audit expectation, not a statute |
+| `ISO/IEC 42001` | Voluntary certification | An AIMS certificate rests on the operational evidence the controls produce |
+| `CoE AI Convention` | Signed 27 March 2025, **not ratified** | No obligations for companies until the implementing act; consultation expected spring 2027 |
+| `EU AI Act` | In force; transparency provisions since August 2026 | Applies to systems placed on the EU market, or whose output is used in the EU |
+
+**FADP**
+
+| Provision | AgentGuard control |
+| :--- | :--- |
+| Art. 7 data protection by design and by default | `D1` input guardrails; `D2` output guardrails and PII redaction |
+| Art. 19 duty to inform | `A3` audit log; guardrail decisions carry a reason an information notice can be built from |
+| Art. 21 automated individual decisions | `H3` approval gate; `E1` human oversight and fallback; `F2` canary rollback |
+| Art. 22 data protection impact assessment | `G1` this mapping; `F1` drift, because a material change invalidates the assessment it rests on |
+| *No Swiss requirement yet* | Non-discrimination testing and AI-specific transparency. The federal act is expected to reach consultation in spring 2027 and no control claims it today. |
+
+**FINMA Guidance 08/2024** (supervised institutions only)
+
+| Section | AgentGuard control |
+| :--- | :--- |
+| 2.1 Governance | `G1`; `G3` dashboard |
+| 2.2 Inventory and risk classification | every story carries a dimension, phase and priority, so the set is enumerable; `G3` surfaces it |
+| 2.3 Data quality | `B1` golden datasets |
+| 2.4 Tests and ongoing monitoring | `C1`–`C3`; `D3` adversarial tests in CI; `F1` drift |
+| 2.5 Documentation | `G2` audit-ready report; this document |
+| 2.6 Explainability | `H2` canary verdicts give a failure a cause; `A3` records the decision |
+| 2.7 Independent review | Epic I red teaming; `D3` |
+
+**Council of Europe AI Convention** — upcoming, mapped so the work is ready when the act is
+
+| Theme | Control that would evidence it |
+| :--- | :--- |
+| Transparency | `A3`, `G2` |
+| Oversight | `H3`, `E1` |
+| Risk assessment | `B1`, `F1`, `G1` |
+| Data protection | the FADP rows above, which are current rather than upcoming |
+
+An article citation in this section is a pointer, not legal advice: confirm it against the act text before putting it in front of a customer.
+
+---
+
 ## 7. Backlog Traceability
 
 The GitHub project is the execution layer of this matrix. Each story is tagged with its dimension and primary standard.
@@ -245,6 +296,15 @@ Query it with the repository script rather than keeping a table here:
 ./scripts/fetch-items.sh 5 | jq -r '
   .[] | select(.standard | test("OWASP")) | "\(.number) \(.title)"'
 ```
+
+An evidence package for one standard, or for all of them, is exported as markdown:
+
+```bash
+./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh "Swiss FADP" > swiss-fadp.md
+./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh > all-standards.md
+```
+
+The package indexes the controls that claim a standard. It does not assert that their evidence is complete — the artifact that proves each control is named in the story.
 
 `./scripts/validate-project.sh` fails if any `Standard` value falls outside the vocabulary in §8.
 

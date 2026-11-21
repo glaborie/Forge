@@ -37,6 +37,7 @@ text
 │   ├── validate-project.sh         ← board consistency gate
 │   ├── new-issue.sh                ← create a story with every field set
 │   ├── triage-ready.sh             ← Backlog → Ready for P0s
+│   ├── evidence-package.sh         ← per-standard markdown evidence index
 │   └── block.sh                    ← set native blocked-by relations
 └── .github/workflows/
     ├── ci.yml                      ← ruff, mypy, pytest
@@ -365,6 +366,14 @@ The limit is stated in the module: Forge holds no signing key, so a claim rewrit
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 
 Nothing here blocks. That is the whole point of Forge: the payload must reach the target.
+
+6.11 evidence-package.sh
+```
+./scripts/fetch-items.sh 5 | ./scripts/evidence-package.sh ["Standard"] > package.md
+```
+Reads the project snapshot on stdin, keeps issues only (pull requests are not controls), and writes one markdown row per `(standard, control)` pair, sorted by standard and then number. With an argument it filters to that exact `Standard` value; without one it lists every standard.
+
+It indexes controls; it does not assert coverage, because the artifact proving a control is named in the story. A standard with no controls prints `No control references …` and exits 0, so an empty result is visible rather than silently empty. A bare object (`{"items": …}`) is rejected with the `.items[]` hint and invalid JSON exits 1.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
