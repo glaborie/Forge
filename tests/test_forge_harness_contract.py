@@ -137,3 +137,47 @@ def test_runner_without_a_spec_records_nothing() -> None:
 
     assert run.records[0].conformance is None
     assert run.summary()["by_conformance"] == {}
+
+
+def test_a_type_only_schema_is_unspecified_not_conformant() -> None:
+    """`{"type": "object"}` accepts anything, so it promises nothing."""
+    spec = Spec(
+        {
+            "paths": {
+                "/x": {
+                    "post": {
+                        "responses": {
+                            "200": {
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"type": "object", "description": "anything"}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+
+    assert spec.check(path="/x", method="post", status=200, body={"a": 1}).verdict == "unspecified"
+
+
+def test_strict_mode_promotes_a_type_only_schema_to_a_violation() -> None:
+    spec = Spec(
+        {
+            "paths": {
+                "/x": {
+                    "post": {
+                        "responses": {
+                            "200": {"content": {"application/json": {"schema": {"type": "object"}}}}
+                        }
+                    }
+                }
+            }
+        },
+        strict=True,
+    )
+
+    assert spec.check(path="/x", method="post", status=200, body={}).verdict == "schema_violation"
