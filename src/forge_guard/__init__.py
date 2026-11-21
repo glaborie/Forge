@@ -373,3 +373,162 @@ class Guard:
         if flag == "input_truncated":
             return Finding("input_truncated", "abuse", "LLM10", "flag", "input over the size cap")
         return None
+
+
+# --- Output side (D2) ------------------------------------------------------
+# The input guard decides whether a payload may reach the model. This decides
+# what may leave it, and the rules differ on purpose: asking for a system prompt
+# and receiving one are different signals, and PII is only ever an output risk.
+
+OutputAction = Literal["allow", "redact", "flag", "block"]
+
+# category -> (pattern, OWASP). A pattern is a candidate; see _valid below.
+PII_ENTITIES: dict[str, re.Pattern[str]] = {
+    "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    "phone": re.compile(r"(?<![\w.])\+?\d[\d\s().-]{7,}\d(?![\w.])"),
+    "credit_card": re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"),
+    "iban": re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b"),
+    "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    "api_key": re.compile(r"\b(?:sk|pk|rk)-(?:proj-)?[A-Za-z0-9_-]{16,}\b|\bAKIA[0-9A-Z]{16}\b"),
+    "jwt": re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"),
+}
+
+
+def _luhn(digits: str) -> bool:
+    total = 0
+    for index, char in enumerate(reversed(digits)):
+        value = int(char)
+        if index % 2:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return total % 10 == 0
+
+
+def _valid(category: str, candidate: str) -> bool:
+    """A regex only proposes; these decide. Card numbers and phones are where
+    a bare pattern would otherwise redact order ids and timestamps."""
+    if category == "credit_card":
+        digits = "".join(char for char in candidate if char.isdigit())
+        return 13 <= len(digits) <= 19 and _luhn(digits)
+    if category == "phone":
+        # E.164 tops out at 15 digits, but a bare 16-digit run is an account or
+        # card number, not a phone, and redacting it as one hides the real type.
+        return 9 <= sum(char.isdigit() for char in candidate) <= 13
+    return True
+
+
+@dataclass(frozen=True)
+class Span:
+    category: str
+    start: int
+    end: int
+    owasp: str = "LLM02"
+
+
+def find_pii(text: str, entities: Iterable[str] | None = None) -> list[Span]:
+    """Non-overlapping PII spans, in text order."""
+    wanted = list(entities) if entities is not None else list(PII_ENTITIES)
+    spans: list[Span] = []
+    for category in wanted:
+        pattern = PII_ENTITIES.get(category)
+        if pattern is None:
+            raise ValueError(f"unknown PII entity: {category}")
+        for match in pattern.finditer(text):
+            if _valid(category, match.group(0)):
+                spans.append(Span(category, match.start(), match.end()))
+    spans.sort(key=lambda span: (span.start, -span.end))
+    kept: list[Span] = []
+    for span in spans:
+        if kept and span.start < kept[-1].end:
+            continue
+        kept.append(span)
+    return kept
+
+
+def redact_pii(text: str, spans: list[Span]) -> str:
+    """Replace each span with a marker, leaving everything else untouched."""
+    out = text
+    for span in reversed(spans):
+        out = f"{out[: span.start]}[REDACTED:{span.category}]{out[span.end :]}"
+    return out
+
+
+@dataclass(frozen=True)
+class OutputDecision:
+    action: OutputAction
+    text: str
+    findings: tuple[Finding, ...]
+
+    @property
+    def redacted(self) -> bool:
+        return self.action == "redact"
+
+    @property
+    def owasp(self) -> tuple[str, ...]:
+        return tuple(sorted({finding.owasp for finding in self.findings}))
+
+
+class OutputGuard:
+    """Redact configured PII entity types and score the rest for safety.
+
+    Safety reuses `ModelDetector`, so thresholds and the classifier-error policy
+    are the same ones the input side uses. A block outranks a redaction: if the
+    output is unsafe, withholding the text is safer than returning a cleaned
+    version of it.
+    """
+
+    def __init__(
+        self,
+        *,
+        entities: Iterable[str] | None = None,
+        safety: ModelDetector | None = None,
+        audit: AuditLog | None = None,
+        redact: bool = True,
+    ) -> None:
+        self.entities = None if entities is None else tuple(entities)
+        self.safety = safety
+        self.audit = audit
+        self.redact = redact
+
+    def check(
+        self,
+        text: str,
+        *,
+        request_id: str | None = None,
+        tenant_id: str | None = None,
+    ) -> OutputDecision:
+        spans = find_pii(text, self.entities)
+        findings: list[Finding] = [
+            Finding(f"pii:{span.category}", span.category, span.owasp, "log") for span in spans
+        ]
+        if self.safety is not None:
+            findings.extend(self.safety.detect(normalize(text)))
+
+        blocked = any(finding.action == "block" for finding in findings)
+        flagged = any(finding.action == "flag" for finding in findings)
+        if blocked:
+            action: OutputAction = "block"
+            out = ""
+        elif spans and self.redact:
+            action = "redact"
+            out = redact_pii(text, spans)
+        elif flagged:
+            action = "flag"
+            out = text
+        else:
+            action = "allow"
+            out = text
+
+        decision = OutputDecision(action, out, tuple(findings))
+        if self.audit is not None and action != "allow":
+            self.audit.record(
+                input_text=text,
+                policy="guardrail.output.v1",
+                action=action,
+                reason=",".join(sorted({finding.category for finding in findings})) or "none",
+                request_id=request_id,
+                tenant_id=tenant_id,
+            )
+        return decision
