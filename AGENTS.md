@@ -31,6 +31,7 @@ text
 ├── src/forge_guard/                ← D1 input guardrails
 ├── src/forge_harness/              ← H1 inject / record / label
 ├── src/forge_compliance/           ← G1 framework selection and evidence index
+├── src/forge_datasets/             ← B1 golden datasets: CSV/JSON, versioning
 ├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
 ├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
@@ -421,6 +422,26 @@ answer = breaker.call(lambda: provider.complete(prompt), fallback=lambda: SAFE_R
 Retries belong to the caller, because a retry policy that conflicts with the breaker's timer is worse than either alone.
 
 **Not for the harness.** `forge_harness` deliberately does not use this: a dead target is a result, so suppressing requests would erase the finding. The breaker protects a service's own provider calls.
+
+6.13 forge_datasets (Python package, not a script)
+`Dataset` is the golden-dataset container: a name, a list of `GoldenCase`, and a version. A case carries `input`, `expected`, `rubric`, `dimension`, `source` and an optional `id`.
+
+```python
+from forge_datasets import Dataset, GoldenCase
+
+dataset = Dataset.load("evaluation/refunds.csv")  # .csv or .json
+dataset.cases.append(GoldenCase(input="Do you ship to Norway?", expected="Yes"))
+dataset.version = dataset.save("evaluation/refunds.json")  # -> 2
+print(dataset.content_hash)  # pin this in the report
+```
+
+**Versioning is per file, not a history.** `save()` compares the cases with what is already at the path and bumps the integer only when they differ; saving identical content writes nothing and returns the same version, so the call is idempotent. `content_hash` is a sha256 over the cases and moves when any field does, which is what a report should cite — the version number alone says nothing across files. There is no journal, so deleting or renaming the file loses the chain: pin the hash.
+
+**`dimension` is free text** matching the board's Dimension field. Restating that vocabulary in this package would be a third copy to drift, and the board validator is the gate. `rubric` is likewise just text; C1 interprets it.
+
+**Unknown columns are rejected, not ignored.** A CSV with `expected_out` instead of `expected` would otherwise import every case with no expectation, and an evaluation over it would pass vacuously. Missing `input` or `expected` names the case index rather than the file.
+
+**Editing is list manipulation.** `cases` is a plain list, so the API edits it in place and a UI edits it by round-tripping JSON or CSV through the same loader. `save()` refuses a `.csv` path instead of writing JSON into one; use `to_csv()`. There is no server here — the dashboard this repo plans will call these functions rather than shell out.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
