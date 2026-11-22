@@ -511,6 +511,7 @@ Cannot index array with string "items"	Script written against old gh project ite
 Issue field values cannot be updated using updateProjectV2ItemFieldValue	The field is an issue field (Milestone, Labels, Assignees), not a custom project field.	Set them on the issue: gh issue edit --milestone / --add-label / --add-assignee.
 --format json rejected together with --field	Mutually exclusive on gh project item-list.	Use fetch-items.sh (GraphQL).
 @me unusable in GraphQL	It is a CLI alias, not a login.	OWNER=$(gh api user --jq .login) before any GraphQL call.
+gh api graphql --paginate re-fetches page 1	Only `$endCursor` is substituted; a query declaring `$cursor` never advances. Latent until the project passed 100 items, then it read as a rate-limit failure and a 25-minute CI hang.	Name the cursor `$endCursor`, and merge pages with `jq -s '[.[].data…]'` because `--slurp` cannot combine with `--jq`.
 Could not resolve to a ProjectV2	Trying node(id: owner) { ... on User { projectV2(…) } }.	Query user(login: …) { projectV2(number: …) } directly.
 Options truncated at first comma	--single-select-options splits on ,.	Keep option labels comma-free.
 ascii_downcase cannot be applied to: null	A field value of a type missing from fetch-items.sh's fragments (a date value) has no .field.	Keep the select(.field?.name != null) guard when adding field types.
