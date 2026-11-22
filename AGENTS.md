@@ -32,6 +32,7 @@ text
 ├── src/forge_harness/              ← H1 inject / record / label
 ├── src/forge_compliance/           ← G1 framework selection and evidence index
 ├── src/forge_datasets/             ← B1 golden datasets: CSV/JSON, versioning
+├── src/forge_eval/                 ← C1 LLM-as-judge evaluators and score store
 ├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
 ├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
@@ -442,6 +443,34 @@ print(dataset.content_hash)  # pin this in the report
 **Unknown columns are rejected, not ignored.** A CSV with `expected_out` instead of `expected` would otherwise import every case with no expectation, and an evaluation over it would pass vacuously. Missing `input` or `expected` names the case index rather than the file.
 
 **Editing is list manipulation.** `cases` is a plain list, so the API edits it in place and a UI edits it by round-tripping JSON or CSV through the same loader. `save()` refuses a `.csv` path instead of writing JSON into one; use `to_csv()`. There is no server here — the dashboard this repo plans will call these functions rather than shell out.
+
+6.14 forge_eval (Python package, not a script)
+`Evaluator(ask, rubric, model="", version="")` turns one answer into one `Score`. `ask` is a caller-supplied `prompt -> text` callable, the same shape `ModelDetector` takes, so no model is bundled; `forge_eval.openrouter.ask()` is the adapter and reads `OPENROUTER_MODEL` / `OPENROUTER_BASE_URL` / `OPENROUTER_API_KEY` like `forge_guard.openrouter`.
+
+```python
+from forge_eval import RUBRICS, Evaluator, Sample, ScoreStore
+from forge_eval.openrouter import ask
+
+judge = Evaluator(ask=ask(model="openai/gpt-4o-mini"), rubric=RUBRICS["hallucination"])
+score = judge.evaluate(
+    Sample(input=question, output=answer, expected=reference),
+    trace_id=span_id,
+    store=ScoreStore("scores.jsonl"),
+)
+score.value, score.version  # 0.82, '4f2c8ab19d31'
+```
+
+**Four rubrics ship**, matching the story: `hallucination` and `context_recall` are reference-based, `faithfulness` and `relevance` are reference-free. A rubric is `Rubric(name, criteria, reference=False)`; pass `rubric=` to `evaluate()` to override per call — that is how a `GoldenCase.rubric` from `forge_datasets` reaches the judge, and the override's version is what lands in the score.
+
+**The direction is uniform: 1.0 means the criteria are satisfied.** `hallucination` is therefore scored as groundedness. Rubrics with opposite directions make every average meaningless, and an average is why the scores are stored at all.
+
+**The version is the evaluator's identity**, a hash of model, rubric text, mode and prompt template. Editing a rubric changes the version, so two numbers can never be silently compared across a rubric change. `version=` overrides it when a deployment numbers its own prompts.
+
+**A judge that cannot answer raises `JudgeError`** — never `0.0`. A fabricated zero is indistinguishable from a failed answer, and the point of the evaluator is to report the answer. A score outside `0..1` is rejected rather than clamped: `95` from a judge that read the scale as a percentage would otherwise become a perfect `1.0`.
+
+**Scores are JSONL, one line per score, joined to a trace by `trace_id`.** `ScoreStore.for_trace(id)` is the read path. `trace_id` defaults to the active span's trace id, or `""` when nothing is traced — a score without one is still stored, it just cannot be joined.
+
+There is no batch runner and no aggregation on purpose: C3 is the CI gate and it decides what a threshold means. This package answers "what did this one answer score, and under which evaluator".
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.
