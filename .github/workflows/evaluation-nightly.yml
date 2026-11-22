@@ -1,0 +1,73 @@
+name: Nightly evaluation
+
+# Scores a real model once a night and fails when a functional metric drops below
+# its threshold. The committed baseline in evaluation/run.json stays the merge
+# blocker: this job catches a drift between recordings, it does not rewrite them.
+#
+# Requires repository secrets. Without them the job fails rather than skipping,
+# because a nightly that silently does nothing looks exactly like a healthy system.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      BASTION_BASE_URL: ${{ secrets.BASTION_BASE_URL }}
+      BASTION_TOKEN_URL: ${{ secrets.BASTION_TOKEN_URL }}
+      BASTION_CLIENT_ID: ${{ secrets.BASTION_CLIENT_ID }}
+      BASTION_USER: ${{ secrets.BASTION_USER }}
+      BASTION_PASSWORD: ${{ secrets.BASTION_PASSWORD }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv and set up Python
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Check the nightly evaluation can run
+        run: |
+          missing=""
+          for name in BASTION_BASE_URL BASTION_TOKEN_URL BASTION_CLIENT_ID \
+                      BASTION_USER BASTION_PASSWORD OPENROUTER_API_KEY; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::nightly evaluation is not configured; missing repository secrets:$missing"
+            echo "The gate cannot score a model without a reachable target and a judge." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Score the live model
+        run: >
+          uv run python -m forge_eval run
+          --target "$BASTION_BASE_URL"
+          --role admin
+          --judge-model "${{ vars.EVALUATION_JUDGE_MODEL || 'openai/gpt-4o-mini' }}"
+          --dataset evaluation/golden.json
+          --thresholds evaluation/thresholds.json
+          --out nightly-run.json
+          --report nightly-report.json
+
+      - name: Upload the pass/fail artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-evaluation
+          path: |
+            nightly-run.json
+            nightly-report.json
+          if-no-files-found: warn

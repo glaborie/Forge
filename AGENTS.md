@@ -46,7 +46,8 @@ text
 │   ├── evidence-package.sh         ← per-standard markdown evidence index
 │   └── block.sh                    ← set native blocked-by relations
 └── .github/workflows/
-    ├── ci.yml                      ← ruff, mypy, pytest
+    ├── ci.yml                      ← ruff, mypy, pytest, the evaluation gate
+    ├── evaluation-nightly.yml      ← scores a live model nightly
     ├── project-automation.yml      ← branch naming → Status
     └── project-board.yml           ← branch naming → Status
 
@@ -488,6 +489,10 @@ A run missing either pin fails as `unpinned`, never as a pass by omission: a sna
 `evaluation/thresholds.json` was chosen before the first recording (0.7 hallucination, 0.7 faithfulness, 0.8 relevance) and is not tuned to the result. Lowering a threshold to make a run pass is how an evaluation gate stops meaning anything; when a run fails, the fix is a better system or a re-recorded baseline.
 
 `evaluation-report.json` is the pass/fail artifact and CI uploads it whether the gate passes or fails. The gate lives inside `quality-and-tests`, already the required check, so a failure blocks merge without touching branch protection.
+
+`evaluation-nightly.yml` scores a real model on a schedule (`0 3 * * *`, plus `workflow_dispatch`) and fails when a metric drops below its threshold. The committed run stays the merge blocker; the nightly job catches drift between recordings and never rewrites the baseline. It needs repository secrets — `BASTION_BASE_URL`, `BASTION_TOKEN_URL`, `BASTION_CLIENT_ID`, `BASTION_USER`, `BASTION_PASSWORD`, `OPENROUTER_API_KEY` — and it **fails** rather than skipping when one is missing, because a nightly that silently does nothing is indistinguishable from a healthy system. `vars.EVALUATION_JUDGE_MODEL` overrides the judge model.
+
+An unreachable target aborts a recording with exit 2 instead of scoring the transport error as the model's answer. "The model got worse" and "we could not reach the model" are different findings, and only one is about the model; a low score from a dead host would be a fabricated regression. A blocked answer (200 with a content filter) is still scored, because the gateway did respond.
 
 Baseline as recorded: hallucination 0.89, faithfulness 0.89, relevance 1.00 over 9 cases. The two 0.89s come from one case, `unknown-policy`, whose context does not contain the answer — the target invented a late-payment penalty rather than saying the context does not cover it. That case exists so the baseline is not a wall of 1.00s that only a total collapse could disturb; it is also what showed the faithfulness rubric was too lenient, since it originally scored the same invented answer 1.00.
 
