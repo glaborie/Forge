@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   evaluate:
-    runs-on: ubuntu-latest
+    # A gateway on localhost is only reachable from a self-hosted runner. Set the
+    # repository variable EVALUATION_RUNNER to its label, e.g. `homelab`.
+    runs-on: ${{ vars.EVALUATION_RUNNER || 'ubuntu-latest' }}
     env:
       BASTION_BASE_URL: ${{ secrets.BASTION_BASE_URL }}
       BASTION_TOKEN_URL: ${{ secrets.BASTION_TOKEN_URL }}
