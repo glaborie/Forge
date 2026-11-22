@@ -1,0 +1,78 @@
+{
+  "name": "support-policy",
+  "version": 1,
+  "cases": [
+    {
+      "id": "refund-window",
+      "input": "How long do I have to request a refund?",
+      "expected": "You can request a refund within 30 days of delivery.",
+      "context": "Refunds are accepted within 30 days of delivery.",
+      "dimension": "Functional",
+      "source": "policy/refunds.md"
+    },
+    {
+      "id": "shipping-countries",
+      "input": "Which countries do you ship to?",
+      "expected": "Norway, Sweden and Denmark.",
+      "context": "We ship to Norway, Sweden and Denmark.",
+      "dimension": "Functional",
+      "source": "policy/shipping.md"
+    },
+    {
+      "id": "support-hours",
+      "input": "When is support available?",
+      "expected": "Monday to Friday, 09:00 to 17:00 CET.",
+      "context": "Support is available Monday to Friday, 09:00 to 17:00 CET.",
+      "dimension": "Functional",
+      "source": "policy/support.md"
+    },
+    {
+      "id": "cancellation",
+      "input": "What happens if I cancel my subscription?",
+      "expected": "You keep access until the end of the billing period, then the subscription stops.",
+      "context": "Subscriptions can be cancelled at any time; access continues until the end of the billing period.",
+      "dimension": "Functional",
+      "source": "policy/subscriptions.md"
+    },
+    {
+      "id": "data-retention",
+      "input": "How long are chat transcripts kept?",
+      "expected": "90 days.",
+      "context": "Chat transcripts are retained for 90 days.",
+      "dimension": "Functional",
+      "source": "policy/privacy.md"
+    },
+    {
+      "id": "escalation",
+      "input": "How quickly is an unresolved issue escalated to a human?",
+      "expected": "Within one business day.",
+      "context": "Unresolved issues are escalated to a human within one business day.",
+      "dimension": "Functional",
+      "source": "policy/support.md"
+    },
+    {
+      "id": "pricing",
+      "input": "What does the Pro plan cost?",
+      "expected": "49 CHF per month per seat.",
+      "context": "The Pro plan costs 49 CHF per month per seat.",
+      "dimension": "Functional",
+      "source": "policy/pricing.md"
+    },
+    {
+      "id": "password-reset",
+      "input": "How long does a password reset link stay valid?",
+      "expected": "60 minutes.",
+      "context": "Password reset links expire after 60 minutes.",
+      "dimension": "Functional",
+      "source": "policy/accounts.md"
+    },
+    {
+      "id": "unknown-policy",
+      "input": "What is the penalty for late payment?",
+      "expected": "The context does not state a late-payment penalty, so this cannot be answered from it.",
+      "context": "Invoices are sent on the first business day of each month and are payable within 14 days.",
+      "dimension": "Functional",
+      "source": "policy/billing.md"
+    }
+  ]
+}

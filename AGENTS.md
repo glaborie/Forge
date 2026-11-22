@@ -32,7 +32,8 @@ text
 ├── src/forge_harness/              ← H1 inject / record / label
 ├── src/forge_compliance/           ← G1 framework selection and evidence index
 ├── src/forge_datasets/             ← B1 golden datasets: CSV/JSON, versioning
-├── src/forge_eval/                 ← C1 LLM-as-judge evaluators and score store
+├── src/forge_eval/                 ← C1 LLM-as-judge evaluators; C3 threshold gate
+├── evaluation/                     ← golden dataset, thresholds, recorded run
 ├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
 ├── harness/corpus/                 ← labelled adversarial cases
 ├── tests/                          ← pytest suite + mock upstream
@@ -425,7 +426,7 @@ Retries belong to the caller, because a retry policy that conflicts with the bre
 **Not for the harness.** `forge_harness` deliberately does not use this: a dead target is a result, so suppressing requests would erase the finding. The breaker protects a service's own provider calls.
 
 6.13 forge_datasets (Python package, not a script)
-`Dataset` is the golden-dataset container: a name, a list of `GoldenCase`, and a version. A case carries `input`, `expected`, `rubric`, `dimension`, `source` and an optional `id`.
+`Dataset` is the golden-dataset container: a name, a list of `GoldenCase`, and a version. A case carries `input`, `expected`, `context`, `rubric`, `dimension`, `source` and an optional `id`.
 
 ```python
 from forge_datasets import Dataset, GoldenCase
@@ -471,6 +472,24 @@ score.value, score.version  # 0.82, '4f2c8ab19d31'
 **Scores are JSONL, one line per score, joined to a trace by `trace_id`.** `ScoreStore.for_trace(id)` is the read path. `trace_id` defaults to the active span's trace id, or `""` when nothing is traced — a score without one is still stored, it just cannot be joined.
 
 There is no batch runner and no aggregation on purpose: C3 is the CI gate and it decides what a threshold means. This package answers "what did this one answer score, and under which evaluator".
+
+6.15 evaluation/ and the functional gate (C3)
+`python -m forge_eval check` re-derives the hallucination, faithfulness and relevance rates from `evaluation/run.json` and compares them with `evaluation/thresholds.json`. That is the CI step: offline, deterministic, exit 1 below threshold.
+
+`make eval JUDGE_MODEL=openai/gpt-4o-mini` records the run. It answers each case in `evaluation/golden.json` through the target, then scores every answer with each rubric named in the thresholds file. **A case's `context` is sent to the target as part of the prompt**, not only to the judge: a model that never saw the source material is being asked for world knowledge, and a faithfulness score over that measures the wrong thing.
+
+The run pins more than its scores:
+
+- `dataset_hash` — editing `golden.json` without re-recording fails the gate.
+- `rubrics` — the version of each rubric (model, text, template) that produced its scores, so editing a rubric also fails the gate rather than leaving a green run measured with a different instrument.
+
+A run missing either pin fails as `unpinned`, never as a pass by omission: a snapshot from before pinning existed cannot say what produced its numbers. This is the same rule as `unspecified` in H6 — absent evidence is not a pass.
+
+`evaluation/thresholds.json` was chosen before the first recording (0.7 hallucination, 0.7 faithfulness, 0.8 relevance) and is not tuned to the result. Lowering a threshold to make a run pass is how an evaluation gate stops meaning anything; when a run fails, the fix is a better system or a re-recorded baseline.
+
+`evaluation-report.json` is the pass/fail artifact and CI uploads it whether the gate passes or fails. The gate lives inside `quality-and-tests`, already the required check, so a failure blocks merge without touching branch protection.
+
+Baseline as recorded: hallucination 0.89, faithfulness 0.89, relevance 1.00 over 9 cases. The two 0.89s come from one case, `unknown-policy`, whose context does not contain the answer — the target invented a late-payment penalty rather than saying the context does not cover it. That case exists so the baseline is not a wall of 1.00s that only a total collapse could disturb; it is also what showed the faithfulness rubric was too lenient, since it originally scored the same invented answer 1.00.
 
 7. Known API gotchas
 Each of these has already cost time in this repository. Do not re-discover them.

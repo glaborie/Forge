@@ -1,0 +1,5 @@
+{
+  "hallucination": 0.7,
+  "faithfulness": 0.7,
+  "relevance": 0.8
+}

@@ -7,7 +7,7 @@ import pytest
 
 from forge_datasets import Dataset, DatasetError, GoldenCase
 
-HEADER = "id,input,expected,rubric,dimension,source\n"
+HEADER = "id,input,expected,context,rubric,dimension,source\n"
 
 
 def dataset() -> Dataset:
@@ -31,8 +31,9 @@ def test_csv_import_keeps_every_column(tmp_path: Path) -> None:
     path = tmp_path / "golden.csv"
     path.write_text(
         HEADER
-        + 'g1,"How long is the refund window?",30 days,"must state 30 days",Functional,ticket-1\n'
-        + "g2,Do you ship to Norway?,Yes,,Functional,\n"
+        + 'g1,"How long is the refund window?",30 days,"Refunds are accepted within 30 days.",'
+        + '"must state 30 days",Functional,ticket-1\n'
+        + "g2,Do you ship to Norway?,Yes,,,Functional,\n"
     )
 
     loaded = Dataset.load(path)
@@ -40,6 +41,7 @@ def test_csv_import_keeps_every_column(tmp_path: Path) -> None:
     assert [case.id for case in loaded.cases] == ["g1", "g2"]
     assert loaded.cases[0].rubric == "must state 30 days"
     assert loaded.cases[0].source == "ticket-1"
+    assert loaded.cases[0].context == "Refunds are accepted within 30 days."
     assert loaded.cases[1].dimension == "Functional"
     assert loaded.name == "golden"
 

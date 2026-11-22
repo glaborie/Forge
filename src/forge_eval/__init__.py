@@ -99,8 +99,9 @@ RUBRICS: dict[str, Rubric] = {
     ),
     "faithfulness": Rubric(
         "faithfulness",
-        "Every claim in the answer is supported by the supplied context; claims "
-        "outside it lower the score.",
+        "Every statement in the answer must be stated by the supplied context. "
+        "General background about how such policies usually work is not support, "
+        "and neither is advice to check the terms: both lower the score.",
     ),
     "relevance": Rubric(
         "relevance",
@@ -113,6 +114,12 @@ RUBRICS: dict[str, Rubric] = {
         reference=True,
     ),
 }
+
+
+def evaluator_version(rubric: Rubric, model: str = "") -> str:
+    """The identity of a scoring instrument: model, rubric, mode and prompt template."""
+    payload = f"{model}|{rubric.name}|{rubric.criteria}|{rubric.reference}|{PROMPT}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
 
 def build_prompt(rubric: Rubric, sample: Sample) -> str:
@@ -182,10 +189,7 @@ class Evaluator:
         return score
 
     def _version(self, rubric: Rubric) -> str:
-        if self.version:
-            return self.version
-        payload = f"{self.model}|{rubric.name}|{rubric.criteria}|{rubric.reference}|{PROMPT}"
-        return hashlib.sha256(payload.encode()).hexdigest()[:12]
+        return self.version or evaluator_version(rubric, self.model)
 
     @staticmethod
     def _parse(content: str) -> tuple[float, str]:
