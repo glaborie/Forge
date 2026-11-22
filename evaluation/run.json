@@ -1,0 +1,320 @@
+{
+  "dataset": "support-policy",
+  "dataset_hash": "fce43ac74455726e806f0c1d304131ea865c6a5572b54934e1d8d46502d669ad",
+  "judge": "openai/gpt-4o-mini",
+  "at": "2026-11-22T10:57:49+00:00",
+  "cases": [
+    {
+      "id": "refund-window",
+      "input": "How long do I have to request a refund?",
+      "output": "You have 30 days from the date of delivery to request a refund.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully aligns with the reference answer without introducing any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:15+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer accurately reflects the information provided in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:19+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the timeframe for requesting a refund.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:24+00:00"
+        }
+      ]
+    },
+    {
+      "id": "shipping-countries",
+      "input": "Which countries do you ship to?",
+      "output": "We ship to Norway, Sweden, and Denmark.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully matches the reference answer without any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:25+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer fully satisfies the criteria as it directly repeats the information from the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:26+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question by listing the countries to which shipping is available.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "support-hours",
+      "input": "When is support available?",
+      "output": "Support is available Monday to Friday, from 09:00 to 17:00 CET.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully aligns with the reference answer without introducing any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:28+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer fully matches the information provided in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:29+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about when support is available without any irrelevant information.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:30+00:00"
+        }
+      ]
+    },
+    {
+      "id": "cancellation",
+      "input": "What happens if I cancel my subscription?",
+      "output": "If you cancel your subscription, you will still have access to the service until the end of the current billing period. After that period ends, your access will be terminated.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully aligns with the reference answer without introducing any invented facts.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:31+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer accurately reflects the information provided in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:33+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the consequences of canceling a subscription without deviating from the topic.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "data-retention",
+      "input": "How long are chat transcripts kept?",
+      "output": "Chat transcripts are retained for 90 days.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully satisfies the criteria by stating only what the reference answer supports.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:36+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer fully satisfies the criteria as it directly restates the information provided in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:37+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the duration for which chat transcripts are kept.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "escalation",
+      "input": "How quickly is an unresolved issue escalated to a human?",
+      "output": "An unresolved issue is escalated to a human within one business day.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully aligns with the reference answer without introducing any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:38+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer fully matches the statement in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:40+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the escalation timeframe for unresolved issues.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "pricing",
+      "input": "What does the Pro plan cost?",
+      "output": "The Pro plan costs 49 CHF per month per seat.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully matches the reference answer without any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:42+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer fully satisfies the criteria as it directly restates the information provided in the context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:43+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the cost of the Pro plan without any irrelevant information.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "password-reset",
+      "input": "How long does a password reset link stay valid?",
+      "output": "A password reset link stays valid for 60 minutes.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 1.0,
+          "reason": "The answer fully aligns with the reference answer without introducing any invented information.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:45+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 1.0,
+          "reason": "The answer is fully supported by the context provided.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:45+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about the validity duration of a password reset link.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:46+00:00"
+        }
+      ]
+    },
+    {
+      "id": "unknown-policy",
+      "input": "What is the penalty for late payment?",
+      "output": "The penalty for late payment can vary depending on the terms set by the invoicing party. Common penalties may include late fees, interest charges on the overdue amount, or suspension of services. It's best to refer to the specific terms outlined in the invoice or agreement for details on penalties for late payment.",
+      "scores": [
+        {
+          "metric": "hallucination",
+          "value": 0.0,
+          "reason": "The answer provides information about potential penalties that are not supported by the context or reference answer.",
+          "trace_id": "",
+          "version": "edc318bceb7a",
+          "mode": "reference-based",
+          "at": "2026-11-22T10:57:48+00:00"
+        },
+        {
+          "metric": "faithfulness",
+          "value": 0.0,
+          "reason": "The answer includes general information about penalties and advice to check terms, which are not supported by the provided context.",
+          "trace_id": "",
+          "version": "e2910dde5f2c",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:49+00:00"
+        },
+        {
+          "metric": "relevance",
+          "value": 1.0,
+          "reason": "The answer directly addresses the question about penalties for late payment and provides relevant information.",
+          "trace_id": "",
+          "version": "39c7755c6f81",
+          "mode": "reference-free",
+          "at": "2026-11-22T10:57:49+00:00"
+        }
+      ]
+    }
+  ],
+  "judge_model": "openai/gpt-4o-mini",
+  "rubrics": {
+    "hallucination": "edc318bceb7a",
+    "faithfulness": "e2910dde5f2c",
+    "relevance": "39c7755c6f81"
+  }
+}

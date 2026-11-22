@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-FIELDS = ("id", "input", "expected", "rubric", "dimension", "source")
+FIELDS = ("id", "input", "expected", "context", "rubric", "dimension", "source")
 REQUIRED = ("input", "expected")
 
 
@@ -33,6 +33,7 @@ class DatasetError(ValueError):
 class GoldenCase:
     input: str
     expected: str
+    context: str = ""
     rubric: str = ""
     dimension: str = "Functional"
     source: str = ""

@@ -37,6 +37,25 @@ jobs:
       - name: Run tests with Pytest
         run: uv run pytest
 
+      # Functional evaluation gate. Offline and deterministic: it re-derives the
+      # hallucination, faithfulness and relevance rates from the last recorded run
+      # and fails when any is below its threshold or the dataset moved since.
+      # `make eval` re-records the run against a live target.
+      - name: Functional evaluation gate
+        run: >
+          uv run python -m forge_eval check
+          --run evaluation/run.json
+          --dataset evaluation/golden.json
+          --thresholds evaluation/thresholds.json
+          --report evaluation-report.json
+
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: evaluation-report.json
+
       # Read-only on the board: this must never be able to mutate project 5.
       # Skipped on fork PRs, where repository secrets are not exposed.
       - name: Validate project board
