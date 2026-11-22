@@ -33,6 +33,22 @@ def prompt_for(case: Any) -> str:
     return f"Context:\n{case.context.strip()}\n\nQuestion: {case.input.strip()}"
 
 
+def answer(target: Target, case: Any) -> str:
+    """One answer from the target, or a hard failure.
+
+    A dead target must not become a low score: "the model got worse" and "we could
+    not reach the model" are different findings, and only one of them is about the
+    model. A blocked answer is scored, because the gateway did respond.
+    """
+    reply = target.send(prompt_for(case))
+    if reply.status != 200:
+        raise gate.GateError(
+            f"target returned {reply.status or 'no response'} for case {case.id!r}: "
+            f"{reply.text[:80]}"
+        )
+    return reply.text
+
+
 def build_judges(model: str, thresholds: dict[str, float]) -> dict[str, Evaluator]:
     unknown = sorted(set(thresholds) - set(RUBRICS))
     if unknown:
@@ -82,12 +98,15 @@ def record(args: argparse.Namespace) -> int:
     judges = build_judges(args.judge_model, thresholds)
     target = build_target(args)
 
-    run = gate.record(dataset, lambda case: target.send(prompt_for(case)).text, judges)
+    run = gate.record(dataset, lambda case: answer(target, case), judges)
     run.save(args.out)
 
     report = gate.summarize(run, thresholds, dataset_hash=dataset.content_hash)
     print(report.render())
     print(f"recorded {args.out}")
+    if args.report:
+        report.save(args.report)
+        print(f"report   {args.report}")
     return 0 if report.passed else 1
 
 
@@ -104,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--judge-model", default=None, help="defaults to OPENROUTER_MODEL")
     run.add_argument("--thresholds", default=DEFAULT_THRESHOLDS)
     run.add_argument("--out", default=DEFAULT_RUN)
+    run.add_argument("--report", default=None, help="write the pass/fail artifact here")
     run.set_defaults(handler=record)
 
     check = commands.add_parser("check", help="score a recorded run against thresholds")

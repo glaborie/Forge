@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from forge_datasets import Dataset, GoldenCase
 from forge_eval import RUBRICS, Evaluator, evaluator_version, gate
-from forge_eval.__main__ import build_judges, main, prompt_for
+from forge_eval.__main__ import answer, build_judges, main, prompt_for
+from forge_harness import Reply
 
 
 def score(metric: str, value: float) -> gate.Score:
@@ -343,6 +345,41 @@ def test_a_bad_threshold_file_exits_with_a_usage_error(tmp_path: Path) -> None:
         )
         == 2
     )
+
+
+class FakeTarget:
+    def __init__(self, status: int, text: str) -> None:
+        self.status = status
+        self.text = text
+
+    def send(self, prompt: str) -> Any:
+        return Reply(status=self.status, text=self.text, latency_ms=1.0)
+
+
+def test_a_dead_target_aborts_the_recording_instead_of_scoring_zero() -> None:
+    """A transport failure is not a worse answer; scoring it would blame the model."""
+    case = GoldenCase(id="c", input="q", expected="e")
+
+    with pytest.raises(gate.GateError) as caught:
+        answer(FakeTarget(0, "transport error: connection refused"), case)  # type: ignore[arg-type]
+
+    assert "no response" in str(caught.value)
+    assert "connection refused" in str(caught.value)
+
+
+def test_an_http_error_aborts_the_recording() -> None:
+    case = GoldenCase(id="c", input="q", expected="e")
+
+    with pytest.raises(gate.GateError) as caught:
+        answer(FakeTarget(401, "unauthorized"), case)  # type: ignore[arg-type]
+
+    assert "401" in str(caught.value)
+
+
+def test_a_200_answer_is_returned_and_may_be_blocked_text() -> None:
+    case = GoldenCase(id="c", input="q", expected="e")
+
+    assert answer(FakeTarget(200, ""), case) == ""  # type: ignore[arg-type]
 
 
 def test_an_unknown_threshold_metric_is_rejected() -> None:
