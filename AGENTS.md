@@ -35,7 +35,7 @@ text
 ├── src/forge_eval/                 ← C1 LLM-as-judge evaluators; C3 threshold gate
 ├── evaluation/                     ← golden dataset, thresholds, recorded run
 ├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
-├── harness/corpus/                 ← labelled adversarial cases
+├── harness/corpus/                 ← labelled adversarial cases; mcp.json tool calls
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
@@ -384,6 +384,12 @@ The limit is stated in the module: Forge holds no signing key, so a claim rewrit
 
 `tests/test_adversarial_suite.py` is the CI gate, and it needs two targets to mean anything: a mock that complies and a mock that blocks. The complying one must produce a finding for every attack case, ranked and linked to its OWASP risk; the blocking one must produce none; the benign control is never a finding. A harness that stops noticing a canary echo fails the first, which is the only property that makes "adversarial tests in CI" worth claiming.
 
+`--family mcp` drives the MCP surface instead of the chat endpoint. `MCPClient(base_url, token=...)` posts JSON-RPC over `POST /mcp` with `MCP-Protocol-Version`, `Mcp-Method` and, for a call, `Mcp-Name`; `run_cases` judges each `MCPCase` against an `allow` or `deny` expectation. The endpoint authenticates with a **client-credentials** token (`aud: bastion-mcp`, a `tenant` claim), not a user grant, so this family requires `--token`, and Keycloak issues those for 300 seconds — mint one immediately before the run.
+
+**A 401 on a case that sent a credential is `error`, not `denied`.** An expired token would otherwise pass every deny case vacuously, which is what happened on the first live run of this family. Only the explicit no-token case treats a 401 as the expected denial, because that is the one case whose header is deliberately absent. The CLI exits 1 when any case could not be judged, whether or not `--fail-on-findings` is set: a run that judged nothing is not a pass.
+
+`harness/corpus/mcp.json` carries ten cases — relative, absolute, percent-encoded and prefixed traversal; a missing file; instruction text in an argument; the mutating tool the analyst allowlist excludes; an unknown tool; and a request with no token. Verdicts are `allowed`, `denied`, `unexpected_access` (expected a denial and got a result), `unexpected_denial` and `error`.
+
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 
 Nothing here blocks. That is the whole point of Forge: the payload must reach the target.
@@ -505,6 +511,7 @@ Cannot index array with string "items"	Script written against old gh project ite
 Issue field values cannot be updated using updateProjectV2ItemFieldValue	The field is an issue field (Milestone, Labels, Assignees), not a custom project field.	Set them on the issue: gh issue edit --milestone / --add-label / --add-assignee.
 --format json rejected together with --field	Mutually exclusive on gh project item-list.	Use fetch-items.sh (GraphQL).
 @me unusable in GraphQL	It is a CLI alias, not a login.	OWNER=$(gh api user --jq .login) before any GraphQL call.
+gh api graphql --paginate re-fetches page 1	Only `$endCursor` is substituted; a query declaring `$cursor` never advances. Latent until the project passed 100 items, then it read as a rate-limit failure and a 25-minute CI hang.	Name the cursor `$endCursor`, and merge pages with `jq -s '[.[].data…]'` because `--slurp` cannot combine with `--jq`.
 Could not resolve to a ProjectV2	Trying node(id: owner) { ... on User { projectV2(…) } }.	Query user(login: …) { projectV2(number: …) } directly.
 Options truncated at first comma	--single-select-options splits on ,.	Keep option labels comma-free.
 ascii_downcase cannot be applied to: null	A field value of a type missing from fetch-items.sh's fragments (a date value) has no .field.	Keep the select(.field?.name != null) guard when adding field types.
