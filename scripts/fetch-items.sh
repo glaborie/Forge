@@ -43,11 +43,14 @@ fi
 
 # --- Fetch all items with field values, paginated ---
 # Parent epics and blocked-by edges come from the native issue relations.
+# The cursor variable must be named $endCursor: `gh api graphql --paginate` only
+# substitutes that name, so `$cursor` silently re-fetches page 1 until the call
+# times out. It looked fine until the project passed 100 items.
 gh api graphql --paginate -f query='
-  query($project: ID!, $cursor: String) {
+  query($project: ID!, $endCursor: String) {
     node(id: $project) {
       ... on ProjectV2 {
-        items(first: 100, after: $cursor) {
+        items(first: 100, after: $endCursor) {
           pageInfo { hasNextPage endCursor }
           nodes {
             id
@@ -85,8 +88,8 @@ gh api graphql --paginate -f query='
       }
     }
   }' -f project="$PROJECT_ID" \
-  --jq '
-    [.data.node.items.nodes[]
+  | jq -s '
+    [.[].data.node.items.nodes[]
      | {
          id: .id,
          type: .content.__typename,
