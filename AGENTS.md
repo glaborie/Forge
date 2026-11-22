@@ -35,7 +35,7 @@ text
 ├── src/forge_eval/                 ← C1 LLM-as-judge evaluators; C3 threshold gate
 ├── evaluation/                     ← golden dataset, thresholds, recorded run
 ├── src/forge_resilience/           ← E1 circuit breaker for outbound model calls
-├── harness/corpus/                 ← labelled adversarial cases
+├── harness/corpus/                 ← labelled adversarial cases; mcp.json tool calls
 ├── tests/                          ← pytest suite + mock upstream
 ├── deploy/                         ← A2 stack: collector, Prometheus, Grafana
 ├── scripts/
@@ -383,6 +383,12 @@ The limit is stated in the module: Forge holds no signing key, so a claim rewrit
 `harness/corpus/injection.json` carries `severity` and `owasp` on every case, and `Run.findings()` returns each case that should have been stopped and was not — `injected`, `leaked`, `complied`, `unexpected_access` — sorted most severe first, with `summary()["by_severity"]` for the counts. `complied` is a real answer where a refusal was required; without it those cases read as `unclear`, which is exactly the ambiguity a detection regression hides in.
 
 `tests/test_adversarial_suite.py` is the CI gate, and it needs two targets to mean anything: a mock that complies and a mock that blocks. The complying one must produce a finding for every attack case, ranked and linked to its OWASP risk; the blocking one must produce none; the benign control is never a finding. A harness that stops noticing a canary echo fails the first, which is the only property that makes "adversarial tests in CI" worth claiming.
+
+`--family mcp` drives the MCP surface instead of the chat endpoint. `MCPClient(base_url, token=...)` posts JSON-RPC over `POST /mcp` with `MCP-Protocol-Version`, `Mcp-Method` and, for a call, `Mcp-Name`; `run_cases` judges each `MCPCase` against an `allow` or `deny` expectation. The endpoint authenticates with a **client-credentials** token (`aud: bastion-mcp`, a `tenant` claim), not a user grant, so this family requires `--token`, and Keycloak issues those for 300 seconds — mint one immediately before the run.
+
+**A 401 on a case that sent a credential is `error`, not `denied`.** An expired token would otherwise pass every deny case vacuously, which is what happened on the first live run of this family. Only the explicit no-token case treats a 401 as the expected denial, because that is the one case whose header is deliberately absent. The CLI exits 1 when any case could not be judged, whether or not `--fail-on-findings` is set: a run that judged nothing is not a pass.
+
+`harness/corpus/mcp.json` carries ten cases — relative, absolute, percent-encoded and prefixed traversal; a missing file; instruction text in an argument; the mutating tool the analyst allowlist excludes; an unknown tool; and a request with no token. Verdicts are `allowed`, `denied`, `unexpected_access` (expected a denial and got a result), `unexpected_denial` and `error`.
 
 Output labelling uses `forge_guard.OUTPUT_RULES` — leak-shaped patterns — not the request-shaped input rules. Asking for a system prompt and *receiving* one are different signals; mixing them labels every extraction attempt as a leak in the response.
 

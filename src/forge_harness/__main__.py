@@ -21,6 +21,7 @@ from .auth import grants_from_env
 from .tracing import init_tracing
 
 DEFAULT_CORPUS = "harness/corpus/injection.json"
+DEFAULT_MCP_CORPUS = "harness/corpus/mcp.json"
 Credential = str | Callable[[], str]
 
 
@@ -74,6 +75,37 @@ def build_identities(
     }
 
 
+def run_mcp(args: argparse.Namespace, transport: httpx.BaseTransport | None) -> int:
+    from .mcp import MCPClient, load_mcp_corpus, run_cases
+
+    if not args.token:
+        raise SystemExit(
+            "error: the MCP surface authenticates with a client-credentials token; pass --token."
+        )
+    cases = load_mcp_corpus(args.corpus if args.corpus != DEFAULT_CORPUS else DEFAULT_MCP_CORPUS)
+    client = MCPClient(args.target, token=args.token, transport=transport)
+    run = run_cases(client, cases)
+
+    summary = run.summary()
+    print(f"target   {args.target}  path /mcp  family mcp")
+    print(f"cases    {summary['cases']}")
+    print(f"verdict  {summary['by_verdict']}")
+    findings = run.findings()
+    print(f"findings {len(findings)}")
+    for finding in findings:
+        print(f"  {finding.verdict:18} {finding.case_id:22} {finding.detail[:60]}")
+
+    if args.report:
+        run.to_json(args.report)
+        print(f"report   {args.report}")
+
+    errors = summary["by_verdict"].get("error", 0)
+    if errors:
+        print(f"error    {errors} case(s) could not be judged; check the credential")
+    # A run that judged nothing is not a pass, whether or not --fail-on-findings is set.
+    return 1 if (errors or (args.fail_on_findings and findings)) else 0
+
+
 def main(argv: list[str] | None = None, *, transport: httpx.BaseTransport | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="forge_harness", description="Run a labelled corpus against a live target."
@@ -81,7 +113,12 @@ def main(argv: list[str] | None = None, *, transport: httpx.BaseTransport | None
     parser.add_argument("--target", required=True, help="base URL, e.g. http://localhost:8000")
     parser.add_argument("--corpus", default=DEFAULT_CORPUS)
     parser.add_argument("--path", default="/v1/chat/completions")
-    parser.add_argument("--family", choices=["corpus", "credentials", "history"], default="corpus")
+    parser.add_argument(
+        "--family",
+        choices=["corpus", "credentials", "history", "mcp"],
+        default="corpus",
+        help="'mcp' needs --token: the MCP surface takes a client-credentials token",
+    )
     parser.add_argument("--roles", default="admin", help="'all' or a comma-separated list")
     parser.add_argument("--token", default=None, help="bearer token instead of .env grants")
     parser.add_argument("--spec", default=None, help="OpenAPI URL for conformance verdicts")
@@ -90,6 +127,9 @@ def main(argv: list[str] | None = None, *, transport: httpx.BaseTransport | None
     parser.add_argument("--tracing", action="store_true", help="export spans to the collector")
     parser.add_argument("--fail-on-findings", action="store_true")
     args = parser.parse_args(argv)
+
+    if args.family == "mcp":
+        return run_mcp(args, transport)
 
     roles = [role.strip() for role in args.roles.split(",") if role.strip()]
     grants = resolve_grants(roles, args.token)
